@@ -71,7 +71,7 @@ function setupDashboard(app, { bots, db }) {
   const envDeveloperIds = new Set((process.env.DASHBOARD_DEVELOPER_IDS || "").split(",").map(x => x.trim()).filter(Boolean));
   const developerIds = new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds]);
   const developerIdsReady = db.get("dashboard_developer_ids").then(ids => {
-    if (Array.isArray(ids)) ids.filter(id => typeof id === "string" && /^\\d{17,20}$/.test(id)).forEach(id => developerIds.add(id));
+    if (Array.isArray(ids)) ids.filter(id => typeof id === "string" && /^\d{17,20}$/.test(id)).forEach(id => developerIds.add(id));
   }).catch(error => console.error("[Dashboard developer access load]", error.message));
 
   if (!sessionSecret) console.warn("[Dashboard] Set DASHBOARD_SESSION_SECRET to enable secure sessions.");
@@ -241,7 +241,7 @@ function setupDashboard(app, { bots, db }) {
   });
   app.post("/dashboard/api/maker/developers", requireUser, requireMakerOwner, async (req, res) => {
     const userId = String(req.body?.userId || "");
-    if (!/^\\d{17,20}$/.test(userId)) return json(res, 400, { error: "آيدي المستخدم غير صالح." });
+    if (!/^\d{17,20}$/.test(userId)) return json(res, 400, { error: "آيدي المستخدم غير صالح." });
     if (developerIds.has(userId)) return json(res, 409, { error: "هذا المستخدم لديه صلاحية بالفعل." });
     const stored = await db.get("dashboard_developer_ids") || [];
     const next = [...new Set([...(Array.isArray(stored) ? stored : []), userId])];
@@ -251,7 +251,7 @@ function setupDashboard(app, { bots, db }) {
   });
   app.delete("/dashboard/api/maker/developers/:userId", requireUser, requireMakerOwner, async (req, res) => {
     const userId = String(req.params.userId || "");
-    if (!/^\\d{17,20}$/.test(userId) || userId === maker.MAKER_OWNER_ID) return json(res, 400, { error: "لا يمكن إزالة هذا المستخدم." });
+    if (!/^\d{17,20}$/.test(userId) || userId === maker.MAKER_OWNER_ID) return json(res, 400, { error: "لا يمكن إزالة هذا المستخدم." });
     if (envDeveloperIds.has(userId)) return json(res, 409, { error: "هذه الصلاحية مضبوطة من متغيرات الاستضافة؛ احذفها من DASHBOARD_DEVELOPER_IDS." });
     const stored = await db.get("dashboard_developer_ids") || [];
     const next = (Array.isArray(stored) ? stored : []).filter(id => id !== userId);
