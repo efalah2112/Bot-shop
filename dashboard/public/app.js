@@ -98,7 +98,7 @@ async function renderMakerConsole(root){
   try{
    const data=await api("/dashboard/api/maker/console");
    const entries=(data.logs||[]).slice().reverse();
-   output=entries.map(entry=>{const time=new Date(entry.at).toLocaleTimeString("en-GB");const level=String(entry.level||"stdout").toUpperCase();return "["+time+"] ["+level+"] "+String(entry.message||"");}).join("\\n");
+   output=entries.map(entry=>{const time=new Date(entry.at).toLocaleTimeString("en-GB");const level=String(entry.level||"stdout").toUpperCase();return "["+time+"] ["+level+"] "+String(entry.message||"");}).join("\n");
    terminal.textContent=output||"لا توجد مخرجات محفوظة بعد.";
    terminal.scrollTop=terminal.scrollHeight;
    state.textContent="تم التحديث • "+entries.length+" سطر";
