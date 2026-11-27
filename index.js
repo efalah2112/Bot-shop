@@ -2489,6 +2489,7 @@ function createBotClient(token, index) {
       entry.value.active &&
       Number(entry.value.endDate) > Date.now()
     );
+    client._premiumEntitled = isPremiumBot;
     const premiumOnlyCommandNames = new Set([
       "exchange-setup", "add-mzad2-type", "set-mzad2-cat",
       "remove-mzad2-type", "mzad2-panel", "نقاطي", "توب-نقاط"
