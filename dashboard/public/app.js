@@ -19,7 +19,7 @@ const fieldGroups={
  ],
  stores:[
   ["shopAdmin","رتبة مسؤول المتاجر","role"],["highStaff","رتبة الإدارة العليا","role"],
-  ["vacationEnabled","تفعيل نظام إجازة المتاجر","boolean"],["disableAuto","تعطيل الأنظمة التلقائية للمتاجر","boolean"],
+  ["shopVacationPrice","سعر إجازة المتجر","money"],["disableAutoPrice","سعر تعطيل النظام التلقائي","money"],
   ["activateShopPrice","سعر تفعيل المتجر","money"],["sellShopPrice","سعر بيع المتجر","money"],["autoMessagePrice","سعر الرسائل التلقائية","money"]
  ],
  auction:[
