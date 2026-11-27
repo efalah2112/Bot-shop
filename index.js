@@ -2482,14 +2482,7 @@ function createBotClient(token, index) {
         },
     ];
 
-    const premiumRecordsAtStartup = await db.all();
-    const isPremiumBot = (premiumRecordsAtStartup || []).some(entry =>
-      (String(entry.id || "").startsWith("premium_user_") || String(entry.id || "").startsWith("maker_free_trial_")) &&
-      entry.value?.botId === client.user.id &&
-      entry.value.active &&
-      Number(entry.value.endDate) > Date.now()
-    );
-    client._premiumEntitled = isPremiumBot;
+    const isPremiumBot = await client._refreshPremiumEntitlement();
     const premiumOnlyCommandNames = new Set([
       "exchange-setup", "add-mzad2-type", "set-mzad2-cat",
       "remove-mzad2-type", "mzad2-panel", "نقاطي", "توب-نقاط"
@@ -2547,6 +2540,17 @@ function createBotClient(token, index) {
   require("./handlers/interactions")(client, { db, config, botOwner, allowedUserId, owner: botOwner, TARGET_ROLE_ID: "1384831324015296614", TARGET_CHANNEL_ID: "1492886293800288527", logJoinChannel, allowedBotId, prefix, TARGET_GUILD_ID, reportsChannelId: "1492886293800288527", reportsGuildId: "1500197339329986690", chsd });
 
   client._botToken = token;
+  client._refreshPremiumEntitlement = async () => {
+    const rows = await db.all();
+    const active = (rows || []).some(entry =>
+      (String(entry.id || "").startsWith("premium_user_") || String(entry.id || "").startsWith("maker_free_trial_")) &&
+      entry.value?.botId === client.user?.id &&
+      entry.value.active &&
+      Number(entry.value.endDate) > Date.now()
+    );
+    client._premiumEntitled = active;
+    return active;
+  };
   client._dashboardTokenSource = environmentTokenSet.has(token) || token === makerToken || token === generalToken ? "protected" : "config";
 
   // ========== GUILD JOIN ==========
