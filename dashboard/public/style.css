@@ -53,3 +53,6 @@
 
 .template-picker{display:flex;flex-direction:column;gap:8px;margin-top:18px;max-width:520px}
 .embed-composer .form-actions{gap:10px;flex-wrap:wrap}
+
+.identity-preview{display:flex;align-items:center;gap:13px;margin:16px 0;padding:13px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(15,23,42,.38)}
+.identity-preview img{width:58px;height:58px;object-fit:cover;border-radius:50%}.identity-preview div{display:flex;flex-direction:column;gap:5px}.identity-preview small{color:var(--muted,#9aa4b8)}
