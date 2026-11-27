@@ -868,6 +868,14 @@ function setupDashboard(app, { bots, db }) {
       auctionAdmin: ["auctionad", "role"], rolesAdmin: ["roles_admin", "role"], supportAdmin: ["support_admin", "role"],
       scamAdmin: ["scam_admin", "role"], warningStaffRole: ["warning_staff_role", "role"]
     },
+    imageSetup: {
+      buyShopImage: ["buyshopimage", "url"], buyOrderImage: ["buyorderimage", "url"],
+      buyAuctionImage: ["buyauctionimage", "url"], buyRolesImage: ["buyrolesimage", "url"],
+      rulesServerImage: ["rulesImage", "url"],
+      priceRolesImage: ["priceRolesImage", "url"], priceShopImage: ["priceShopImage", "url"],
+      priceOrdersImage: ["priceOrdersImage", "url"], priceAuctionImage: ["priceAuctionImage", "url"],
+      serverLineImage: ["image", "url"]
+    },
     appearance: { embedColor: ["embed_color", "color"], imageUrl: ["image", "url"] },
     applications: {
       applyRoom: ["apply_room", "channel"], applyType: ["apply_type", "applyType"], applyRoles: ["apply_roles", "roles"],
