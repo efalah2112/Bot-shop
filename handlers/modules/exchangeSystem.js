@@ -420,6 +420,13 @@ module.exports = function registerExchangeSystem(client, { db, config }) {
     client.once("ready", async () => {
         try {
             const all = await db.all();
+            const activePremium = (all || []).some(entry =>
+                String(entry.id || "").startsWith("premium_user_") &&
+                entry.value?.botId === client.user?.id &&
+                entry.value.active &&
+                Number(entry.value.endDate) > Date.now()
+            );
+            if (!activePremium) return;
             const keys = (all || []).filter(e => e.id.startsWith("xch_cfg_"));
             for (const e of keys) { const gid = e.id.replace("xch_cfg_", ""); if (e.value?.enabled) await startCronFor(gid); }
             console.log(`✅ التبادل: ${cronJobs.size} مهمة`);
