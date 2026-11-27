@@ -636,7 +636,9 @@ function setupDashboard(app, { bots, db }) {
       const prefixes = [
         ["shop_ticket_channel_", "متجر"],
         ["auction_ticket_channel_", "مزاد"],
-        ["order_ticket_channel_", "طلب"]
+        ["order_ticket_channel_", "طلب"],
+        ["roles_ticket_channel_", "رتبة"],
+        ["support_ticket_ch_", "دعم / بلاغ"]
       ];
       const tickets = [];
       for (const entry of entries || []) {
@@ -648,7 +650,7 @@ function setupDashboard(app, { bots, db }) {
         const channelId = key.slice(prefix[0].length);
         const channel = await access.guild.channels.fetch(channelId).catch(() => null);
         if (!channel) continue;
-        tickets.push({ channelId, channelName: channel.name, type: prefix[1], ownerId: value.ownerId || null, url: "https://discord.com/channels/" + access.guildId + "/" + channelId });
+        tickets.push({ channelId, channelName: channel.name, type: value.type === "scam" ? "بلاغ" : prefix[1], ticketNum: value.ticketNum || null, status: value.status || "open", ownerId: value.ownerId || value.userId || null, createdAt: value.createdAt || null, url: "https://discord.com/channels/" + access.guildId + "/" + channelId });
       }
       json(res, 200, { tickets: tickets.slice(0, 100) });
     } catch (error) {
