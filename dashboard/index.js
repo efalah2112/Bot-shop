@@ -570,6 +570,74 @@ function setupDashboard(app, { bots, db }) {
     }
   };
 
+  app.get("/dashboard/api/operations", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const entries = await db.all();
+      const suffix = "_" + access.guildId;
+      const stores = [];
+      const types = [];
+      const orders = [];
+      const auctions = [];
+      for (const entry of entries || []) {
+        const key = String(entry.id || "");
+        if (key.startsWith("shop_") && key.endsWith(suffix) && !/ticket|lastmsg/.test(key)) {
+          const channelId = key.slice(5, -suffix.length);
+          if (!snowflake(channelId)) continue;
+          const channel = access.guild.channels.cache.get(channelId);
+          const value = entry.value || {};
+          stores.push({
+            channelId, channelName: channel?.name || "قناة غير موجودة",
+            sellerId: value.sellerId || null, status: String(value.status ?? "1"),
+            warns: Number(value.warns || 0), partners: Array.isArray(value.partners) ? value.partners.length : 0,
+            type: value.nametype || value.type || "غير محدد"
+          });
+        } else if (key.startsWith("categoryMentions_") && key.endsWith(suffix)) {
+          const categoryId = key.slice("categoryMentions_".length, -suffix.length);
+          const value = entry.value || {};
+          types.push({ categoryId, name: value.nametype || "نوع غير مسمى", price: Number(value.shopPrice || 0), maxWarns: Number(value.maxWarns || 0), mentions: Number(value.shopRoleMentions || 0) });
+        } else if (key.startsWith("order_ticket_") && key.endsWith(suffix)) {
+          const value = entry.value || {};
+          if (value.channelId) orders.push({ userId: value.userId || null, channelId: value.channelId, channelName: access.guild.channels.cache.get(value.channelId)?.name || "تكت غير موجود" });
+        } else if (key.startsWith("active_mzad2_")) {
+          const roomId = key.slice("active_mzad2_".length);
+          if (!access.guild.channels.cache.has(roomId)) continue;
+          const value = entry.value || {};
+          auctions.push({ roomId, roomName: access.guild.channels.cache.get(roomId)?.name || "مزاد", ownerId: value.ownerId || value.draft?.owner || null, title: value.draft?.title || value.draft?.name || "مزاد نشط" });
+        }
+      }
+      stores.sort((a,b) => a.channelName.localeCompare(b.channelName));
+      types.sort((a,b) => a.name.localeCompare(b.name));
+      json(res, 200, { stores, types, orders, auctions });
+    } catch (error) {
+      console.error("[Dashboard operations]", error.message);
+      json(res, 500, { error: "تعذر تحميل بيانات المتاجر والمزاد والطلبات." });
+    }
+  });
+
+  app.post("/dashboard/api/store-status", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.body || {});
+      if (!access) return;
+      const channelId = String(req.body?.channelId || "");
+      const status = String(req.body?.status || "");
+      if (!snowflake(channelId) || !["0","1"].includes(status)) return json(res, 400, { error: "بيانات المتجر غير صالحة." });
+      const channel = access.guild.channels.cache.get(channelId);
+      if (!channel) return json(res, 404, { error: "قناة المتجر غير موجودة في السيرفر." });
+      const key = "shop_" + channelId + "_" + access.guildId;
+      const data = await db.get(key);
+      if (!data || typeof data !== "object") return json(res, 404, { error: "بيانات المتجر غير موجودة." });
+      data.status = status;
+      await db.set(key, data);
+      await audit(access.guildId, req.session.user, "stores", [status === "1" ? "تفعيل " + channelId : "تعطيل " + channelId]);
+      json(res, 200, { saved: true, status });
+    } catch (error) {
+      console.error("[Dashboard store status]", error.message);
+      json(res, 500, { error: "تعذر تحديث حالة المتجر." });
+    }
+  });
+
   app.get("/dashboard/api/ratings", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
