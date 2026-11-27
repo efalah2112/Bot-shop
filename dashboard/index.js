@@ -477,6 +477,7 @@ function setupDashboard(app, { bots, db }) {
       if (action === "stop") {
         if (!client.isReady()) return json(res, 409, { error: "البوت متوقف بالفعل." });
         if (controlKey) await db.set(controlKey, { botId, stopped:true, updatedAt:Date.now(), reason:"maker_manual" });
+        if (typeof client._dashboardRefreshExchangeCron === "function") for (const guild of client.guilds.cache.values()) await client._dashboardRefreshExchangeCron(guild.id, true).catch(() => {});
         client._dashboardBotId = botId; await client.destroy();
         return json(res, 200, { success: true, status: "stopped" });
       }
@@ -484,6 +485,7 @@ function setupDashboard(app, { bots, db }) {
       if (controlKey) await db.set(controlKey, { botId, stopped:false, updatedAt:Date.now(), reason:"maker_manual" });
       if (action === "restart" && client.isReady()) { client._dashboardBotId = botId; await client.destroy(); }
       await client.login(client._botToken); client._dashboardBotId = botId;
+      if (client._premiumEntitled && typeof client._dashboardRefreshExchangeCron === "function") for (const guild of client.guilds.cache.values()) await client._dashboardRefreshExchangeCron(guild.id).catch(() => {});
       return json(res, 200, { success: true, status: action === "start" ? "started" : "restarted" });
     } catch (error) { console.error("[Maker bot lifecycle]", error); json(res, 500, { error: "تعذر تنفيذ إجراء البوت. راجع سجل الاستضافة." }); }
   });
