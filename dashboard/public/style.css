@@ -77,3 +77,7 @@
 @media(max-width:560px){.maker-workspace{padding:30px 18px 60px}.maker-top h1{font-size:26px}.maker-top-actions{width:100%}.maker-top-actions button{flex:1}.maker-nav{grid-template-columns:1fr 1fr}}
 
 .support-workspace .field-control{margin:6px 0}.support-workspace .dashboard-panel{margin-bottom:18px}
+
+.image-preview-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:14px;border:1px solid var(--border-color,rgba(255,255,255,.1));border-radius:14px;background:var(--panel-bg,rgba(255,255,255,.025))}
+.image-preview-card img{display:block;width:100%;max-height:190px;object-fit:contain;border-radius:10px;background:rgba(0,0,0,.12)}
+.image-preview-card small{color:var(--muted,#9ca3af);font-size:12px}
