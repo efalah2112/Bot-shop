@@ -61,6 +61,8 @@ function hasGuildManagement(permission, owner) {
 
 function setupDashboard(app, { bots, db }) {
   const publicDir = path.join(__dirname, "public");
+  let publicStatsCache = null;
+  let publicStatsCacheAt = 0;
   const clientId = process.env.DASHBOARD_CLIENT_ID;
   const clientSecret = process.env.DASHBOARD_CLIENT_SECRET;
   const redirectUri = process.env.DASHBOARD_REDIRECT_URI;
@@ -90,6 +92,7 @@ function setupDashboard(app, { bots, db }) {
   // Public dashboard proof points: only list guilds whose owners explicitly enabled showcase.
   app.get("/dashboard/api/public-stats", async (_req, res) => {
     try {
+      if (publicStatsCache && Date.now() - publicStatsCacheAt < 60000) return json(res, 200, publicStatsCache);
       const uniqueGuilds = new Map();
       let ratingTotal = 0;
       let ratingCount = 0;
@@ -121,14 +124,16 @@ function setupDashboard(app, { bots, db }) {
         showcase.push({ id: guild.id, name: guild.name, icon: guild.iconURL({ size: 96 }), memberCount: Number(guild.memberCount || 0) });
       }
       showcase.sort((a, b) => b.memberCount - a.memberCount);
-      json(res, 200, {
+      publicStatsCache = {
         botCount: bots.filter(client => client && client.isReady() && client.user).length,
         serverCount: allGuilds.length,
         memberCount: allGuilds.reduce((sum, guild) => sum + Number(guild.memberCount || 0), 0),
         ratingCount,
         ratingAverage: ratingCount ? Number((ratingTotal / ratingCount).toFixed(2)) : null,
         topGuilds: showcase.slice(0, 5)
-      });
+      };
+      publicStatsCacheAt = Date.now();
+      json(res, 200, publicStatsCache);
     } catch (error) {
       console.error("[Dashboard public stats]", error.message);
       json(res, 200, { botCount: 0, serverCount: 0, memberCount: 0, ratingCount: 0, ratingAverage: null, topGuilds: [] });
