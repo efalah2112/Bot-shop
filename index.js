@@ -1,4 +1,5 @@
 require("dotenv").config();
+const crypto = require("crypto");
 const express = require("express");
 const app = express();
 const port = Number(process.env.PORT || process.env.SERVER_PORT) || 2022;
@@ -2602,9 +2603,22 @@ function createBotClient(token, index) {
     maker.sendMakerError(client, "Client Error", error);
   });
 
-  client.login(token).catch((error) => {
-    if (error.code === "TokenInvalid") console.warn(`⚠️ Bot ${index + 1}: توكن غير صالح`);
-    else console.error(`❌ Bot ${index + 1} failed to log in:`, error);
+  client._dashboardTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const controlKey = "maker_bot_control_" + client._dashboardTokenHash;
+  db.get(controlKey).then(control => {
+    if (control?.stopped) {
+      client._dashboardBotId = control.botId || null;
+      console.log(`⏸️ Bot ${index + 1} remains stopped by Maker control.`);
+      return;
+    }
+    return client.login(token).catch((error) => {
+      if (error.code === "TokenInvalid") console.warn(`⚠️ Bot ${index + 1}: توكن غير صالح`);
+      else console.error(`❌ Bot ${index + 1} failed to log in:`, error);
+      maker.sendMakerError(client, "Login Failed", error);
+    });
+  }).catch(error => {
+    console.error("[Bot startup control]", error.message);
+    client.login(token).catch(loginError => maker.sendMakerError(client, "Login Failed", loginError));
   });
 
   return client;
