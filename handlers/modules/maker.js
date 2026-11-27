@@ -1178,13 +1178,7 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                     }
                     await existing.login(token);
                     if (existingId) existing._dashboardBotId = existingId;
-                    const rows = await db.all();
-                    existing._premiumEntitled = (rows || []).some(entry =>
-                        String(entry.id || '').startsWith('premium_user_') &&
-                        entry.value?.botId === existingId &&
-                        entry.value.active &&
-                        Number(entry.value.endDate) > Date.now()
-                    );
+                    if (typeof existing._refreshPremiumEntitlement === "function") await existing._refreshPremiumEntitlement();
                     if (existing._premiumEntitled && typeof existing._dashboardRefreshExchangeCron === 'function') {
                         for (const guild of existing.guilds.cache.values()) await existing._dashboardRefreshExchangeCron(guild.id).catch(() => {});
                     }
