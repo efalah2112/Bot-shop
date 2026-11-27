@@ -87,6 +87,7 @@ function setupDashboard(app, { bots, db }) {
     }
   }));
   app.use("/dashboard/assets", express.static(publicDir));
+  app.use("/dashboard/api", require("express").json({ limit: "256kb" }));
 
   const json = (res, status, data) => res.status(status).json(data);
 
@@ -587,7 +588,6 @@ function setupDashboard(app, { bots, db }) {
 
 
   // Dashboard JSON APIs are mounted here so the bot's existing QuickDB keys stay canonical.
-  app.use("/dashboard/api", require("express").json({ limit: "256kb" }));
 
   const snowflake = value => typeof value === "string" && /^\d{17,20}$/.test(value);
   const fieldMap = {
