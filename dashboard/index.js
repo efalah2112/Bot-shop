@@ -1129,7 +1129,7 @@ function setupDashboard(app, { bots, db }) {
       const access = await resolveWorkspace(req, res, req.body || {});
       if (!access) return;
       const { type, channelId, title, description, applicationType } = req.body || {};
-      if (!["tickets","support","application","shop","order","auction","prices","roles"].includes(type)) return json(res, 400, { error: "نوع البانل غير معروف." });
+      if (!["tickets","support","application","shop","order","auction","prices","roles","rules","all","panel-ticket"].includes(type)) return json(res, 400, { error: "نوع البانل غير معروف." });
       if (!snowflake(channelId)) return json(res, 400, { error: "اختر روم إرسال صحيح." });
       const channel = access.guild.channels.cache.get(channelId);
       if (!channel || ![0,5].includes(channel.type)) return json(res, 400, { error: "روم الإرسال غير صالح." });
@@ -1143,6 +1143,42 @@ function setupDashboard(app, { bots, db }) {
       const panelImage = await db.get("image_" + access.guildId);
       if (panelImage && /^https:\/\//i.test(panelImage)) embed.setImage(panelImage);
       const rows = [];
+      if (["rules","all","panel-ticket"].includes(type)) {
+        const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MediaGalleryBuilder, MediaGalleryItemBuilder } = require("discord.js");
+        const customText = String(description || "").trim();
+        const container = new ContainerBuilder().setAccentColor(Number.isFinite(color) ? color : 0x00AE86);
+        const guildBanner = access.guild.bannerURL({ size: 1024, extension: "png" });
+        const imageUrl = guildBanner || panelImage || null;
+        if (type === "rules") {
+          const rules = await db.get("server_rules_" + access.guildId) || [];
+          if (!Array.isArray(rules) || !rules.length) return json(res, 400, { error: "أضف القوانين أولاً من قسم القوانين." });
+          container.addTextDisplayComponents(new TextDisplayBuilder().setContent("# قوانين سيرفر " + access.guild.name), new TextDisplayBuilder().setContent(customText || "اضغط على أي زر لعرض القانون بالتفصيل."));
+          const rulesImage = await db.get("rulesImage_" + access.guildId), chosenImage = rulesImage || imageUrl;
+          if (chosenImage && /^https:\/\//i.test(chosenImage)) { container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)); container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(chosenImage))); }
+          for (let offset=0; offset<rules.length; offset+=5) {
+            const buttons = rules.slice(offset,offset+5).map(rule => new ButtonBuilder().setCustomId("rule_show_" + access.guildId + "_" + rule.id).setLabel(String(rule.label || "قانون").slice(0,80)).setStyle(ButtonStyle.Secondary));
+            rows.push(new ActionRowBuilder().addComponents(buttons));
+          }
+          rows.forEach(row => container.addActionRowComponents(row));
+        } else if (type === "all") {
+          container.addTextDisplayComponents(new TextDisplayBuilder().setContent("# البانل الشامل لسيرفر " + access.guild.name), new TextDisplayBuilder().setContent(customText || "اختر القسم المطلوب من الأزرار بالأسفل."));
+          if (imageUrl && /^https:\/\//i.test(imageUrl)) { container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)); container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(imageUrl))); }
+          rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("allinone_prices_" + access.guildId).setLabel("الأسعار").setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId("allinone_rules_" + access.guildId).setLabel("القوانين").setStyle(ButtonStyle.Secondary)));
+          rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("allinone_tickets_" + access.guildId).setLabel("التكتات").setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId("allinone_roles_" + access.guildId).setLabel("الرتب").setStyle(ButtonStyle.Secondary)));
+          rows.forEach(row => container.addActionRowComponents(row));
+        } else {
+          const [shopCat, shopAdmin, auctionCat, auctionAdmin, orderCat, orderAdmin, rolesCat, rolesAdmin, buyRoles] = await Promise.all([
+            db.get("catbuy_shop_" + access.guildId), db.get("shopad_" + access.guildId), db.get("catbuy_auction_" + access.guildId), db.get("auctionad_" + access.guildId), db.get("catbuy_order_" + access.guildId), db.get("orderad_" + access.guildId), db.get("roles_cat_" + access.guildId), db.get("roles_admin_" + access.guildId), db.get("buy_roles_" + access.guildId)
+          ]);
+          container.addTextDisplayComponents(new TextDisplayBuilder().setContent("# قسم التكتات والمبيعات"), new TextDisplayBuilder().setContent(customText || "اختر الخدمة المناسبة لفتح تذكرة."));
+          if (imageUrl && /^https:\/\//i.test(imageUrl)) { container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)); container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(imageUrl))); }
+          rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("buy_shop").setLabel("شراء متجر").setStyle(ButtonStyle.Secondary).setDisabled(!shopCat || !shopAdmin), new ButtonBuilder().setCustomId("ticket-auction").setLabel("تكت مزاد").setStyle(ButtonStyle.Secondary).setDisabled(!auctionCat || !auctionAdmin), new ButtonBuilder().setCustomId("ticket-order").setLabel("تكت طلبات").setStyle(ButtonStyle.Secondary).setDisabled(!orderCat || !orderAdmin), new ButtonBuilder().setCustomId("ticket-roles").setLabel("شراء رتبة").setStyle(ButtonStyle.Secondary).setDisabled(!rolesCat || !rolesAdmin || !Array.isArray(buyRoles) || !buyRoles.length)));
+          rows.forEach(row => container.addActionRowComponents(row));
+        }
+        const message = await channel.send({ components: [container], flags: 32768 });
+        await audit(access.guildId, req.session.user, "panels", [type + ":" + message.id]);
+        return json(res, 200, { sent: true, channelId: channel.id, messageId: message.id, url: message.url });
+      }
       if (["shop","order","auction","prices","roles"].includes(type)) {
         const panelConfigs = {
           shop: { title: "بـانـل شــراء مـتـاجـر", description: "أهلاً وسهلاً بك في قسم شراء المتاجر.", imageKey: "buyshopimage", buttons: [["buy_shop","شراء متجر"],["shoppri","أسعار المتاجر"]] },
