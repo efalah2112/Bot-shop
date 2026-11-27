@@ -635,6 +635,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         if (!interaction.isStringSelectMenu()) return;
         if (!interaction.customId.startsWith("mzad2_edit_field_")) return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
 
         const ownerId = interaction.customId.replace("mzad2_edit_field_", "");
         const guildId = interaction.guild.id;
