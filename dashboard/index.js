@@ -362,8 +362,10 @@ function setupDashboard(app, { bots, db }) {
       if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
       const alreadyRunning = Boolean(makerClient._hasRegisteredBotToken?.(token));
       if (!alreadyRunning) return json(res, 409, { error: "أضف هذا البوت إلى عملية التشغيل المستقلة المسموح بها في استضافتك أولاً. هذه الصفحة لا تضيف بوتاً ثانياً إلى خادم Wispbyte." });
+      const registeredClient = bots.find(item => item._botToken === token);
+      const wasRunningBeforeTrial = Boolean(registeredClient?.isReady());
       const now = Date.now();
-      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
+      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, wasRunningBeforeTrial, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
       await db.set(trialKey, trial);
       try {
         const runtimeClient = await makerClient._registerPremiumBot(token);
@@ -389,8 +391,13 @@ function setupDashboard(app, { bots, db }) {
       if (!trial) return json(res, 404, { error: "الفترة التجريبية غير موجودة." });
       trial.active = false; trial.status = "revoked"; trial.endDate = Math.min(Number(trial.endDate || Date.now()), Date.now()); trial.revokedAt = Date.now(); trial.revokedBy = req.session.user.id;
       await db.set(key, trial);
-      const makerClient = getBot(maker.MAKER_BOT_ID);
-      if (makerClient?._controlPremiumBot) await makerClient._controlPremiumBot(botId, false);
+      const target = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
+      if (trial.wasRunningBeforeTrial && target?.isReady()) {
+        target.emit("clientReady");
+      } else {
+        const makerClient = getBot(maker.MAKER_BOT_ID);
+        if (makerClient?._controlPremiumBot) await makerClient._controlPremiumBot(botId, false);
+      }
       json(res, 200, { revoked: true });
     } catch (error) { console.error("[Maker trial revoke]", error); json(res, 500, { error: "تعذر إيقاف الفترة التجريبية." }); }
   });
