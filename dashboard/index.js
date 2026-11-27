@@ -389,6 +389,43 @@ function setupDashboard(app, { bots, db }) {
       applyAdmin: ["apply_admin", "channel"], applyTicketCategory: ["apply_ticketcat", "category"],
       applyDisabled: ["apply_disabled", "boolean"], applyQuestions: ["apply_qs", "questions"]
     },
+    stores: {
+      shopAdmin: ["shopad", "role"], highStaff: ["highstaff", "role"],
+      vacationEnabled: ["shopvacation", "boolean"], disableAuto: ["disableauto", "boolean"],
+      activateShopPrice: ["activateshopprice", "money"], sellShopPrice: ["sellshopprice", "money"],
+      autoMessagePrice: ["automessage", "money"]
+    },
+    auction: {
+      auctionAdmin: ["auctionad", "role"], auctionRoom: ["auctionroom", "channel"],
+      auctionMentionRole: ["auctionmzadrole", "role"], auctionRules: ["mzad_rules", "words"],
+      auctionInfo: ["mzad_info", "string"], middlemanLink: ["mzad_middleman_link", "url"],
+      publicAuctionCategory: ["mzad2_pub_cat", "category"], privateAuctionCategory: ["mzad2_ticket_cat", "category"]
+    },
+    orders: {
+      orderAdmin: ["orderad", "role"], orderRoom: ["orderroom", "channel"],
+      orderMentionRole: ["order-mentionrole", "role"], orderEveryPrice: ["order-evrypri", "money"],
+      orderHerePrice: ["order-herepri", "money"], orderBasePrice: ["order-orderpri", "money"]
+    },
+    shortcuts: {
+      mention: ["shortcut_mention", "string"], warning: ["shortcut_warning", "string"],
+      delete: ["shortcut_delete", "string"], tax: ["shortcut_tax", "string"],
+      call: ["shortcut_call", "string"], ping: ["shortcut_ping", "string"],
+      setShopOwner: ["shortcut_setshopowner", "string"], addMentions: ["shortcut_addmentions", "string"],
+      setMentions: ["shortcut_setmentions", "string"], addShopData: ["shortcut_addshopdata", "string"],
+      createShop: ["shortcut_createshop", "string"]
+    },
+    pricing: {
+      everyonePrice: ["evrypri", "money"], herePrice: ["herepri", "money"],
+      shopMentionPrice: ["shopprice", "money"], orderEveryonePrice: ["order-evrypri", "money"],
+      orderHerePrice: ["order-herepri", "money"], orderBasePrice: ["order-orderpri", "money"],
+      auctionEveryonePrice: ["auction-evrypri", "money"], auctionHerePrice: ["auction-herepri", "money"],
+      auctionBidPrice: ["auction-mzadpri", "money"], changeNamePrice: ["changename", "money"],
+      changeOwnerPrice: ["changeowner", "money"], rolePrice: ["customroleprice", "money"]
+    },
+    rules: {
+      serverRules: ["server_rules", "words"], rulesImage: ["rulesImage", "url"],
+      auctionRules: ["mzad_rules", "words"]
+    },
     auto: {
       forbiddenWords: ["forbidden_words", "words"], forbiddenMode: ["forbidden_words_mode", "mode"],
       forbiddenRoom: ["forbidden_words_room", "channel"], warningStaffRole: ["warning_staff_role", "role"],
@@ -586,6 +623,10 @@ function setupDashboard(app, { bots, db }) {
         } else if (type === "number") {
           const n = Number(value);
           if (!Number.isInteger(n) || n < 1 || n > 365) return json(res, 400, { error: "أدخل رقماً صحيحاً بين 1 و365." });
+          await db.set(key + "_" + access.guildId, n);
+        } else if (type === "money") {
+          const n = Number(value);
+          if (!Number.isSafeInteger(n) || n < 0 || n > 1000000000) return json(res, 400, { error: "أدخل مبلغاً صحيحاً بين 0 و1,000,000,000." });
           await db.set(key + "_" + access.guildId, n);
         } else if (type === "applyType" || type === "mode") {
           const allowed = type === "applyType" ? ["dm","channel"] : ["auto","room"];
