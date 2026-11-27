@@ -2121,8 +2121,7 @@ client.on("interactionCreate", async (interaction) => {
         const shortcut =
             (await db.get(`shortcut_addmentions_${guildId}`)) ||
             "+اضافة-منشنات";
-        const shortcutRegex = new RegExp(`/^\s${shortcut}\s/`);
-        if (!shortcutRegex.test(content)) return;
+        if (!(content === shortcut || content.startsWith(shortcut + " "))) return;
 
         // استخراج العدد من الرسالة حتى لو كان هناك مسافات كثيرة
         const countMatch = content.replace(shortcut, "").trim();
@@ -2264,8 +2263,7 @@ client.on("interactionCreate", async (interaction) => {
         const shortcut =
             (await db.get(`shortcut_setmentions_${guildId}`)) ||
             "+تحديد-المنشنات";
-        const shortcutRegex = new RegExp(`/^\s${shortcut}\s/`);
-        if (!shortcutRegex.test(content)) return;
+        if (!(content === shortcut || content.startsWith(shortcut + " "))) return;
 
         // استخراج العدد من الرسالة حتى لو كان هناك مسافات كثيرة
         const countMatch = content.replace(shortcut, "").trim();
