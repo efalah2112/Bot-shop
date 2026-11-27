@@ -1149,7 +1149,10 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
             client._registerPremiumBot = async (token) => {
                 const existing = bots.find(item => item._botToken === token);
                 if (existing) {
-                    if (!existing.isReady()) await existing.login(token);
+                    const existingId = existing._dashboardBotId || existing.user?.id || null;
+                    if (existing.isReady()) await existing.destroy();
+                    await existing.login(token);
+                    if (existingId) existing._dashboardBotId = existingId;
                     return existing;
                 }
                 const botClient = createBotClient(token, bots.length);
