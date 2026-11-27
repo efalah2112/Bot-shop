@@ -80,7 +80,7 @@ config.tokens = [...new Set([...(config.tokens || []), ...environmentTokens])];
 const maker = require("./handlers/modules/maker");
 
 // ========== TOKENS ==========
-const makerToken = config.makerToken || process.env.BOT_TOKEN_MAKER || "";
+const makerToken = process.env.BOT_TOKEN_MAKER || config.makerToken || "";
 const generalToken = config.generalToken || process.env.BOT_TOKEN_GENERAL || "";
 
 // إضافة التوكنات الرئيسية إلى قائمة tokens إن لم تكن موجودة
