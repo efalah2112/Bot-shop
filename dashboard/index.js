@@ -659,6 +659,57 @@ function setupDashboard(app, { bots, db }) {
     }
   });
 
+  app.post("/dashboard/api/tickets/:channelId/action", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.body || {});
+      if (!access) return;
+      const channelId = String(req.params.channelId || "");
+      const action = String(req.body?.action || "");
+      if (!snowflake(channelId) || !["close", "reopen"].includes(action)) return json(res, 400, { error: "بيانات إجراء التذكرة غير صالحة." });
+      const channel = await access.guild.channels.fetch(channelId).catch(() => null);
+      if (!channel || !channel.permissionOverwrites) return json(res, 404, { error: "قناة التذكرة غير موجودة أو لا تدعم الصلاحيات." });
+      const prefixes = [
+        { prefix: "shop_ticket_channel_", type: "shop", adminKey: "shopad_" },
+        { prefix: "auction_ticket_channel_", type: "auction", adminKey: "auctionad_" },
+        { prefix: "order_ticket_channel_", type: "order", adminKey: "orderad_" },
+        { prefix: "roles_ticket_channel_", type: "roles", adminKey: "roles_admin_" },
+        { prefix: "support_ticket_ch_", type: "support", adminKey: "support_admin_" }
+      ];
+      const match = prefixes.find(item => (await db.get(item.prefix + channelId)) !== undefined);
+      if (!match) return json(res, 404, { error: "لم يتم العثور على سجل لهذه التذكرة." });
+      const key = match.prefix + channelId;
+      const meta = await db.get(key);
+      if (!meta || meta.guildId !== access.guildId) return json(res, 404, { error: "سجل التذكرة لا يخص هذا السيرفر." });
+      if (action === "close" && meta.status === "closed") return json(res, 409, { error: "التذكرة مغلقة بالفعل." });
+      if (action === "reopen" && meta.status !== "closed") return json(res, 409, { error: "التذكرة ليست مغلقة." });
+      const ownerId = String(meta.ownerId || meta.userId || "");
+      if (!snowflake(ownerId)) return json(res, 409, { error: "لا يوجد صاحب معروف لهذه التذكرة؛ لم يتم تغيير الصلاحيات." });
+      const adminKey = match.type === "support" && meta.type === "scam" ? "scam_admin_" : match.adminKey;
+      const adminRoleId = await db.get(adminKey + access.guildId);
+      const adminRole = adminRoleId ? access.guild.roles.cache.get(adminRoleId) : null;
+      if (action === "close") {
+        await channel.permissionOverwrites.edit(ownerId, { ViewChannel: false, SendMessages: false });
+        if (adminRole) await channel.permissionOverwrites.edit(adminRole.id, { ViewChannel: true, SendMessages: true });
+        meta.status = "closed";
+        meta.closedAt = Date.now();
+        meta.closedBy = req.session.user.id;
+      } else {
+        await channel.permissionOverwrites.edit(ownerId, { ViewChannel: true, SendMessages: true, EmbedLinks: true, AttachFiles: true });
+        if (adminRole) await channel.permissionOverwrites.edit(adminRole.id, { ViewChannel: true, SendMessages: true, EmbedLinks: true, AttachFiles: true });
+        meta.status = "open";
+        meta.reopenedAt = Date.now();
+        meta.reopenedBy = req.session.user.id;
+      }
+      await db.set(key, meta);
+      if (meta.dbKey && meta.dbKey !== key) await db.set(meta.dbKey, meta);
+      await audit(access.guildId, req.session.user, "tickets", [(action === "close" ? "إغلاق " : "إعادة فتح ") + channelId]);
+      return json(res, 200, { saved: true, status: meta.status });
+    } catch (error) {
+      console.error("[Dashboard ticket action]", error);
+      return json(res, 500, { error: "تعذر تحديث التذكرة. تحقق من صلاحيات البوت على القناة." });
+    }
+  });
+
   app.get("/dashboard/api/embed-templates", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
