@@ -438,7 +438,9 @@ function setupDashboard(app, { bots, db }) {
       const rows = await db.all();
       const premiumRows = (rows || []).filter(row => String(row.id || "").startsWith("premium_user_") && row.value && typeof row.value === "object");
       const premiumRecords = premiumRows.map(row => row.value);
-      const premiumBotIds = new Set(premiumRecords.map(record => String(record.botId || "")));
+      const trialRows = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value && typeof row.value === "object");
+      const trialRecords = trialRows.map(row => row.value);
+      const premiumBotIds = new Set([...premiumRecords, ...trialRecords.filter(record => record.active && Number(record.endDate) > Date.now())].map(record => String(record.botId || "")));
       const botList = bots.map(client => {
         const botId = client._dashboardBotId || client.user?.id || null;
         if (botId) client._dashboardBotId = botId;
