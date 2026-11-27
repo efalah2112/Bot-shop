@@ -208,17 +208,20 @@ async function safeReplyError(interaction, msg) {
 }
 
 module.exports = function registerApply(client, { db, config }) {
-    const isGeneral = () => {
-        const tok = client._botToken || "";
-        return (
-            tok &&
-            tok === (config.generalToken || process.env.BOT_TOKEN_GENERAL || "")
+    const isPremiumBot = async () => {
+        if (!client.user?.id) return false;
+        const rows = await db.all();
+        return (rows || []).some(entry =>
+            String(entry.id || "").startsWith("premium_user_") &&
+            entry.value?.botId === client.user.id &&
+            entry.value.active &&
+            Number(entry.value.endDate) > Date.now()
         );
     };
 
     //========= prefix command: +تسطيب-تقديم =========
     client.on("messageCreate", async (message) => {
-        if (!isGeneral()) return;
+        if (!(await isPremiumBot())) return;
         if (!message.guild || message.author.bot) return;
         const content = message.content.trim();
         if (content !== "+تسطيب-تقديم" && content !== "+تسطيب التقديم") return;
