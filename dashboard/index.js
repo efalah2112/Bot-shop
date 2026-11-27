@@ -193,9 +193,14 @@ function setupDashboard(app, { bots, db }) {
   const getAllPremiumRecords = async () => {
     const rows = await db.all();
     if (!Array.isArray(rows)) throw new Error("QuickDB all() did not return an array");
-    return rows
-      .filter(row => row && String(row.id || "").startsWith("premium_user_") && row.value && row.value.active && Number(row.value.endDate) > Date.now())
+    const now = Date.now();
+    const paid = rows
+      .filter(row => row && String(row.id || "").startsWith("premium_user_") && row.value && row.value.active && Number(row.value.endDate) > now)
       .map(row => row.value);
+    const trials = rows
+      .filter(row => row && String(row.id || "").startsWith("maker_free_trial_") && row.value && row.value.active && Number(row.value.endDate) > now)
+      .map(row => ({ ...row.value, userId: row.value.ownerId, dashboardOwnerId: row.value.ownerId, planLabel: "Premium مجاني مؤقت", isFreeTrial: true }));
+    return [...paid, ...trials];
   };
   const getBot = (id) => bots.find(client => client.user && client.user.id === id);
   const isDeveloper = (userId) => developerIds.has(userId);
