@@ -209,6 +209,8 @@ async function safeReplyError(interaction, msg) {
 
 module.exports = function registerApply(client, { db, config }) {
     const isPremiumBot = async () => {
+        const token = client._botToken || "";
+        if (token && token === (config.generalToken || process.env.BOT_TOKEN_GENERAL || "")) return true;
         if (!client.user?.id) return false;
         const rows = await db.all();
         return (rows || []).some(entry =>
