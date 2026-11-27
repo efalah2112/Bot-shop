@@ -576,7 +576,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         for (const [roomId, td] of client._mzad2Timers.entries()) {
             try {
                 const snap = await db.get(`active_mzad2_${roomId}`);
-                if (snap) await db.set(`active_mzad2_${roomId}`, { ...snap, remainingTime:td.remainingTime, everyLeft:td.everyLeft, hereLeft:td.hereLeft });
+                if (snap) await db.set(`active_mzad2_${roomId}`, { ...snap, remainingTime:td.remainingTime, everyLeft:td.everyLeft, hereLeft:td.hereLeft, pausedAt:Date.now() });
             } catch {}
             if (td.interval) clearInterval(td.interval);
         }
@@ -1637,18 +1637,16 @@ module.exports = function registerMzad2(client, { db, config }) {
                     continue;
                 }
 
+                if (client._mzad2Timers.has(roomId)) continue;
                 let rem;
-                if (data.startedAt && data.type && data.type.hours) {
+                if (data.pausedAt && typeof data.remainingTime === "number") {
+                    rem = data.remainingTime;
+                } else if (data.startedAt && data.type && data.type.hours) {
                     const totalSec = data.type.hours * 3600;
-                    const elapsedSec = Math.floor(
-                        (Date.now() - data.startedAt) / 1000,
-                    );
+                    const elapsedSec = Math.floor((Date.now() - data.startedAt) / 1000);
                     rem = totalSec - elapsedSec;
                 } else {
-                    rem =
-                        typeof data.remainingTime === "number"
-                            ? data.remainingTime
-                            : 60;
+                    rem = typeof data.remainingTime === "number" ? data.remainingTime : 60;
                 }
                 if (rem <= 0) {
                     await db.delete(entry.id);
@@ -1705,6 +1703,8 @@ module.exports = function registerMzad2(client, { db, config }) {
                     interval: null,
                 };
                 client._mzad2Timers.set(roomId, td);
+                const totalDuration = data.type?.hours ? data.type.hours * 3600 : rem;
+                await db.set(entry.id, { ...data, remainingTime:rem, startedAt:Date.now() - Math.max(0, totalDuration - rem) * 1000, pausedAt:null });
                 startMzad2Interval(td, roomId, db);
                 console.log(
                     `[Mzad2] Restored timer for room ${roomId} (${rem}s remaining)`,
