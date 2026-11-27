@@ -2584,9 +2584,7 @@ function createBotClient(token, index) {
   // ========== ERROR HANDLER ==========
   client.on("error", (error) => {
     console.error(`🔴 Bot ${index + 1} encountered an error:`, error);
-    if (client.user.id === maker.MAKER_BOT_ID) {
-      maker.sendMakerError(client, "Client Error", error);
-    }
+    maker.sendMakerError(client, "Client Error", error);
   });
 
   client.login(token).catch((error) => {
