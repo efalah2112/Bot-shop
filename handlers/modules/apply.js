@@ -214,7 +214,7 @@ module.exports = function registerApply(client, { db, config }) {
         if (!client.user?.id) return false;
         const rows = await db.all();
         return (rows || []).some(entry =>
-            String(entry.id || "").startsWith("premium_user_") &&
+            (String(entry.id || "").startsWith("premium_user_") || String(entry.id || "").startsWith("maker_free_trial_")) &&
             entry.value?.botId === client.user.id &&
             entry.value.active &&
             Number(entry.value.endDate) > Date.now()
