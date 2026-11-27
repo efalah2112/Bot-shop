@@ -40,7 +40,7 @@ function captureHostOutput(level, chunk, encoding) {
       ? Buffer.from(chunk).toString(typeof encoding === "string" ? encoding : "utf8")
       : String(chunk ?? "");
     const message = raw
-      .replace(/[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{6,}\\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]")
+      .replace(/[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]")
       .slice(0, 1800);
     if (!message.trim()) return;
     hostConsoleQueue = hostConsoleQueue.then(async () => {
