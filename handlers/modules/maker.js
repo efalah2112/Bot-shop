@@ -1172,7 +1172,10 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                 if (existing) {
                     const existingId = existing._dashboardBotId || existing.user?.id || null;
                     if (existing._dashboardTokenHash) await db.set('maker_bot_control_' + existing._dashboardTokenHash, { botId: existingId, stopped: false, updatedAt: Date.now() });
-                    if (existing.isReady()) await existing.destroy();
+                    if (existing.isReady()) {
+                        if (typeof existing._dashboardStopPrivateAuctions === 'function') await existing._dashboardStopPrivateAuctions().catch(() => {});
+                        await existing.destroy();
+                    }
                     await existing.login(token);
                     if (existingId) existing._dashboardBotId = existingId;
                     const rows = await db.all();
@@ -1185,6 +1188,7 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                     if (existing._premiumEntitled && typeof existing._dashboardRefreshExchangeCron === 'function') {
                         for (const guild of existing.guilds.cache.values()) await existing._dashboardRefreshExchangeCron(guild.id).catch(() => {});
                     }
+                    if (existing._premiumEntitled && typeof existing._dashboardRestoreMzad2Timers === 'function') await existing._dashboardRestoreMzad2Timers().catch(() => {});
                     return existing;
                 }
                 const botClient = createBotClient(token, bots.length);
@@ -1197,6 +1201,8 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                 if (target._dashboardTokenHash) await db.set('maker_bot_control_' + target._dashboardTokenHash, { botId, stopped: !active, updatedAt: Date.now(), reason: active ? 'subscription_active' : 'subscription_inactive' });
                 target._premiumEntitled = Boolean(active);
                 if (active && !target.isReady()) await target.login(target._botToken);
+                if (active && typeof target._dashboardRestoreMzad2Timers === 'function') await target._dashboardRestoreMzad2Timers().catch(() => {});
+                if (!active && typeof target._dashboardStopPrivateAuctions === 'function') await target._dashboardStopPrivateAuctions().catch(() => {});
                 if (typeof target._dashboardRefreshExchangeCron === 'function') {
                     for (const guild of target.guilds.cache.values()) {
                         await target._dashboardRefreshExchangeCron(guild.id, !active).catch(() => {});
