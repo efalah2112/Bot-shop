@@ -1153,6 +1153,7 @@ async function checkFreeTrialExpiries(client, db, bots) {
         trial.active = false;
         trial.status = "expired";
         trial.expiredAt = now;
+        delete trial.botTokenEncrypted;
         await db.set(entry.id, trial);
         const target = (bots || []).find(item => (item._dashboardBotId || item.user?.id) === trial.botId);
         if (trial.wasRunningBeforeTrial && target?.isReady()) {
@@ -1205,6 +1206,28 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                 if (!active && target.isReady()) { target._dashboardBotId = botId; await target.destroy(); }
                 return true;
             };
+            if (!client._restoreFreeTrials) {
+                client._restoreFreeTrials = (async () => {
+                    const rows = await db.all();
+                    const now = Date.now();
+                    for (const entry of rows || []) {
+                        if (!String(entry.id || "").startsWith("maker_free_trial_")) continue;
+                        const trial = entry.value;
+                        if (!trial || !trial.active || Number(trial.endDate) <= now || !trial.botTokenEncrypted) continue;
+                        try {
+                            const token = tokenVault.decryptToken(trial.botTokenEncrypted);
+                            let runtimeClient = bots.find(item => item._botToken === token);
+                            if (!runtimeClient) runtimeClient = await client._registerPremiumBot(token);
+                            if (runtimeClient) {
+                                runtimeClient._dashboardBotId = trial.botId;
+                                runtimeClient._dashboardOwnerId = trial.ownerId;
+                            }
+                        } catch (error) {
+                            console.error("[Premium trial restore] تعذر استعادة البوت " + trial.botId + ":", error.message);
+                        }
+                    }
+                })().catch(error => console.error("[Premium trial restore] فشل استعادة التشغيل:", error.message));
+            }
         }
         if (!client._premiumTokenMigration) {
             client._premiumTokenMigration = migrateLegacyPremiumTokens(db).catch((error) => {
