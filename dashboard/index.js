@@ -691,7 +691,7 @@ function setupDashboard(app, { bots, db }) {
 
       const userGuilds = await getUserGuilds(req);
       const guilds = userGuilds.map(item => {
-        const manageable = hasGuildManagement(item.permissions, item.owner);
+        const manageable = developer || hasGuildManagement(item.permissions, item.owner);
         const present = bot.guilds.cache.has(item.id);
         return {
           id: item.id,
@@ -725,8 +725,8 @@ function setupDashboard(app, { bots, db }) {
         if (!developer) return json(res, 403, { error: "هذا القسم متاح للمبرمج فقط." });
         const userGuilds = await getUserGuilds(req);
         const membership = userGuilds.find(item => item.id === guildId);
-        if (!membership || !hasGuildManagement(membership.permissions, membership.owner)) {
-          return json(res, 403, { error: "لا توجد صلاحية لإدارة هذا السيرفر." });
+        if (!membership) {
+          return json(res, 403, { error: "يجب أن تكون عضواً في السيرفر للوصول إليه من قسم المبرمج." });
         }
       } else if (mode === "premium") {
         const records = await getAllPremiumRecords();
