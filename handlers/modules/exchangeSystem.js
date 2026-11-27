@@ -187,10 +187,12 @@ module.exports = function registerExchangeSystem(client, { db, config }) {
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.guild) return;
         const isExchangeAction = interaction.commandName === "exchange-setup" || String(interaction.customId || "").startsWith("xch_");
-        const premiumAllowed = typeof client._refreshPremiumEntitlement === "function" ? await client._refreshPremiumEntitlement() : Boolean(client._premiumEntitled);
-        if (isExchangeAction && !premiumAllowed) {
-            if (!interaction.replied && !interaction.deferred && interaction.isRepliable?.()) await interaction.reply({ content: "هذه الميزة متاحة لبوتات Premium فقط.", ephemeral: true });
-            return;
+        if (isExchangeAction) {
+            const premiumAllowed = typeof client._refreshPremiumEntitlement === "function" ? await client._refreshPremiumEntitlement() : Boolean(client._premiumEntitled);
+            if (!premiumAllowed) {
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable?.()) await interaction.reply({ content: "هذه الميزة متاحة لبوتات Premium فقط.", ephemeral: true });
+                return;
+            }
         }
         try {
             const gid = interaction.guild.id;
