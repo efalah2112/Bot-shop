@@ -37,7 +37,7 @@ for (const level of Object.keys(hostConsoleOriginal)) {
     hostConsoleOriginal[level](...args);
     try {
       const raw = require("util").format(...args);
-      const message = String(raw).replace(/[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{6,}\\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]").slice(0, 1800);
+      const message = String(raw).replace(/[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]").slice(0, 1800);
       hostConsoleQueue = hostConsoleQueue.then(async () => {
         const current = await db.get("maker_host_console_logs");
         const entries = Array.isArray(current) ? current : [];
