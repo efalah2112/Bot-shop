@@ -330,7 +330,7 @@ function setupDashboard(app, { bots, db }) {
     try {
       const rows = await db.all();
       const trials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value)
-        .map(row => row.value)
+        .map(row => { const { botTokenEncrypted, ...safeTrial } = row.value; return safeTrial; })
         .sort((a, b) => Number(b.startDate || 0) - Number(a.startDate || 0));
       json(res, 200, { trials });
     } catch (error) { console.error("[Maker trials]", error); json(res, 500, { error: "تعذر تحميل فترات التشغيل التجريبية." }); }
