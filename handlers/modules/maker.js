@@ -716,6 +716,15 @@ async function handlePremiumBuyModal(i, db, client) {
 
     const planId = await db.get(`premium_plan_${i.user.id}`);
     if (!planId) return i.reply({ content: '❌ لم يتم اختيار خطة.', ephemeral: true });
+    const linkedRecords = await db.all();
+    const linkedToAnotherOwner = (linkedRecords || []).some(entry =>
+        String(entry.id || '').startsWith('premium_user_') &&
+        entry.value?.botId === botId &&
+        entry.value?.userId !== i.user.id
+    );
+    if (linkedToAnotherOwner) {
+        return i.reply({ content: '❌ هذا البوت مرتبط باشتراك مستخدم آخر. يجب نقل الملكية من لوحة الميكر أولاً.', ephemeral: true });
+    }
 
     const settings = await db.get('premium_settings');
     if (!settings) return i.reply({ content: '❌ النظام غير مضبوط', ephemeral: true });
