@@ -570,6 +570,59 @@ function setupDashboard(app, { bots, db }) {
     }
   };
 
+  app.get("/dashboard/api/embed-templates", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const key = "dashboard_embed_templates_" + access.guildId + "_" + access.mode;
+      json(res, 200, { templates: await db.get(key) || [] });
+    } catch (error) {
+      console.error("[Dashboard embed templates]", error.message);
+      json(res, 500, { error: "تعذر تحميل قوالب الإمبد." });
+    }
+  });
+
+  app.post("/dashboard/api/embeds", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.body || {});
+      if (!access) return;
+      const { action, channelId } = req.body || {};
+      const title = String(req.body?.title || "").trim().slice(0, 256);
+      const description = String(req.body?.description || "").trim().slice(0, 4000);
+      const footer = String(req.body?.footer || "").trim().slice(0, 2048);
+      const imageUrl = String(req.body?.imageUrl || "").trim();
+      const rawColor = String(req.body?.color || "#5865F2").trim();
+      if (!title && !description) return json(res, 400, { error: "أدخل عنواناً أو وصفاً للإمبد." });
+      if (!/^#?[0-9a-fA-F]{6}$/.test(rawColor)) return json(res, 400, { error: "لون الإمبد غير صالح." });
+      if (imageUrl && (!/^https:\\/\\/\\S+$/i.test(imageUrl) || imageUrl.length > 500)) return json(res, 400, { error: "رابط الصورة يجب أن يبدأ بـ HTTPS." });
+      const template = { id: crypto.randomUUID(), title, description, footer, imageUrl, color: rawColor.startsWith("#") ? rawColor : "#" + rawColor, updatedAt: Date.now() };
+      const key = "dashboard_embed_templates_" + access.guildId + "_" + access.mode;
+      if (action === "save") {
+        const templates = await db.get(key) || [];
+        templates.unshift(template);
+        await db.set(key, templates.slice(0, access.mode === "premium" ? 50 : 20));
+        await audit(access.guildId, req.session.user, "embeds", ["حفظ قالب " + (title || "بدون عنوان")]);
+        return json(res, 200, { saved: true, template });
+      }
+      if (action !== "send") return json(res, 400, { error: "الإجراء غير معروف." });
+      if (!snowflake(channelId)) return json(res, 400, { error: "اختر روم إرسال صحيحاً." });
+      const channel = access.guild.channels.cache.get(channelId);
+      if (!channel || ![0,5].includes(channel.type)) return json(res, 400, { error: "روم الإرسال غير صالح." });
+      const { EmbedBuilder } = require("discord.js");
+      const embed = new EmbedBuilder().setColor(parseInt(template.color.replace("#", ""), 16));
+      if (title) embed.setTitle(title);
+      if (description) embed.setDescription(description);
+      if (footer) embed.setFooter({ text: footer });
+      if (imageUrl) embed.setImage(imageUrl);
+      const message = await channel.send({ embeds: [embed] });
+      await audit(access.guildId, req.session.user, "embeds", ["إرسال إمبد " + (title || "بدون عنوان") + " في " + channelId]);
+      json(res, 200, { sent: true, url: message.url, template });
+    } catch (error) {
+      console.error("[Dashboard embed send]", error.message);
+      json(res, 500, { error: "تعذر حفظ أو إرسال الإمبد. تحقق من صلاحيات البوت." });
+    }
+  });
+
   app.get("/dashboard/api/operations", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
