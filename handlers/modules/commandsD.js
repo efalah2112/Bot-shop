@@ -205,6 +205,7 @@ function sendContainer(target, container, rows = []) {
     return target.send({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 }
 
@@ -213,6 +214,7 @@ function replyContainer(interaction, container, { rows = [], ephemeral = false }
     return interaction.reply({
         components: [container],
         flags: MessageFlags.IsComponentsV2 | (ephemeral ? MessageFlags.Ephemeral : 0),
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 }
 
@@ -221,6 +223,7 @@ function editReplyContainer(interaction, container, { rows = [] } = {}) {
     return interaction.editReply({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 }
 
@@ -960,6 +963,7 @@ module.exports = function registerCommandsD(
                         await i.followUp({
                             components: [catContainer],
                             flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                         }).catch(() => {});
                     }
                 }
@@ -1993,6 +1997,7 @@ module.exports = function registerCommandsD(
                     await i.reply({
                         components: [setupContainer],
                         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                     });
                 }
                 break;
@@ -2245,6 +2250,7 @@ module.exports = function registerCommandsD(
                     await i.reply({
                         components: [container],
                         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                     });
                 }
                 break;
@@ -2336,6 +2342,7 @@ module.exports = function registerCommandsD(
         await i.editReply({
             components: [container],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
         });
     }
     break;
@@ -2527,6 +2534,7 @@ module.exports = function registerCommandsD(
                     await targetChannel.send({
                         components: [container],
                         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                     });
 
                     await i.reply({
@@ -2638,6 +2646,7 @@ module.exports = function registerCommandsD(
                 await i.channel.send({
                     components: [container],
                     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                 });
 
                 await i.reply({ content: "**✅ تـم إر سـال بـانـل الـقـوانـيـن.**", ephemeral: true });
@@ -2763,8 +2772,8 @@ module.exports = function registerCommandsD(
 
                 await i.channel.send({
                     components: [container],
-                    flags: MessageFlags.IsComponentsV2
-                });
+                    flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 
                 await i.reply({
                     content: "**✅ تـم إر سـال بـانـل الـتـكـتـات بـنـجـاح.**",
@@ -2881,6 +2890,7 @@ module.exports = function registerCommandsD(
                     await i.channel.send({
                         components: [container],
                         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                     });
 
                     await i.editReply({ content: "**✅ تـم إر سـال الـبـانـل الـشـامـل بـنـجـاح.**" });
@@ -3026,6 +3036,7 @@ module.exports = function registerCommandsD(
                     await i.channel.send({
                         components: [container],
                         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                     });
 
                     await i.reply({
