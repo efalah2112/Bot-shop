@@ -432,7 +432,7 @@ function setupDashboard(app, { bots, db }) {
       if (!client?._botToken) return json(res, 404, { error: "لم يتم العثور على توكن محفوظ لهذا البوت." });
       if (client._dashboardTokenSource !== "config") return json(res, 409, { error: "هذا التوكن مرتبط بمتغير أو إعداد أساسي في الاستضافة ولا يمكن حذفه من لوحة الميكر." });
       const rows = await db.all();
-      const activePremium = (rows || []).some(row => String(row.id || "").startsWith("premium_user_") && row.value?.botId === botId && row.value.active && Number(row.value.endDate) > Date.now());
+      const activePremium = (rows || []).some(row => (String(row.id || "").startsWith("premium_user_") || String(row.id || "").startsWith("maker_free_trial_")) && row.value?.botId === botId && row.value.active && Number(row.value.endDate) > Date.now());
       if (activePremium) return json(res, 409, { error: "لا يمكن حذف بوت لديه اشتراك Premium نشط." });
       const removed = tokenVault.removeToken(client._botToken);
       if (!removed) return json(res, 409, { error: "هذا التوكن مُدار من متغيرات الاستضافة ولا يمكن حذفه من ملف الإعدادات." });
