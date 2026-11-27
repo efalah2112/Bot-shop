@@ -30,3 +30,19 @@
 .panel-message-link{display:inline-block;margin-top:12px;color:#a5b4fc;font-weight:700;text-decoration:none}.panel-message-link:hover{text-decoration:underline}
 
 .nav-caption{color:#687797;font-size:9px;font-weight:700;padding:14px 10px 7px;margin-top:4px;border-top:1px solid var(--line)}.sidebar{max-height:calc(100vh - 36px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#465477 transparent}@media(max-width:850px){.sidebar{max-height:none;overflow:visible}.nav-caption{grid-column:1/-1}}
+/* Public community and command directory */
+.public-showcase{margin:0 0 26px;padding:20px;border:1px solid rgba(129,140,248,.2);border-radius:20px;background:linear-gradient(135deg,rgba(30,41,80,.72),rgba(17,24,48,.72));}
+.public-stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.public-stat{padding:15px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(8,13,28,.38)}
+.public-stat small{display:block;color:var(--muted,#9aa4b8);font-size:12px}
+.public-stat b{display:block;margin-top:7px;font-size:23px;color:#f8fafc}
+.showcase-heading{margin-top:20px}.showcase-heading h3{margin:0}.showcase-heading p,.showcase-empty{color:var(--muted,#9aa4b8);font-size:13px}
+.showcase-list{display:grid;gap:8px;margin-top:12px}
+.showcase-row{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 13px;border-radius:12px;background:rgba(8,13,28,.34)}
+.showcase-rank{color:#a5b4fc}.showcase-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.showcase-row strong{font-size:12px;color:#c7d2fe}
+.command-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.command-card{min-width:0;padding:16px;border:1px solid rgba(148,163,184,.16);border-radius:15px;background:rgba(15,23,42,.48)}
+.command-card-top{display:flex;flex-direction:column;gap:7px}.command-card-top code{color:#c4b5fd;font-weight:800;font-size:15px}.command-card-top span,.command-option span{font-size:12px;color:var(--muted,#9aa4b8)}
+.command-options{display:grid;gap:7px;margin:13px 0}.command-option{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.command-option code{font-size:11px;color:#a5b4fc}
+.command-card .ghost-button{margin-top:10px}
+@media(max-width:720px){.public-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.command-list{grid-template-columns:1fr}.showcase-row{grid-template-columns:36px minmax(0,1fr) auto}}
