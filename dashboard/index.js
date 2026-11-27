@@ -569,6 +569,33 @@ function setupDashboard(app, { bots, db }) {
     }
   };
 
+  app.get("/dashboard/api/commands", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const globalCommands = await access.bot.application.commands.fetch().catch(() => null);
+      const guildCommands = await access.guild.commands.fetch().catch(() => null);
+      const all = new Map();
+      for (const command of [...(globalCommands?.values?.() || []), ...(guildCommands?.values?.() || [])]) {
+        all.set(command.id, {
+          id: command.id,
+          name: command.name,
+          description: command.description || "بدون وصف",
+          options: (command.options || []).map(option => ({
+            name: option.name,
+            description: option.description || "",
+            required: Boolean(option.required),
+            type: option.type
+          }))
+        });
+      }
+      json(res, 200, { commands: [...all.values()].sort((a, b) => a.name.localeCompare(b.name)) });
+    } catch (error) {
+      console.error("[Dashboard commands]", error.message);
+      json(res, 500, { error: "تعذر تحميل أوامر البوت." });
+    }
+  });
+
   app.get("/dashboard/api/workspace", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
