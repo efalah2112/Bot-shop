@@ -278,6 +278,9 @@ function setupDashboard(app, { bots, db }) {
     try {
       const category = String(req.body?.category || ""), title = String(req.body?.title || "").trim().slice(0, 100), body = String(req.body?.body || "").trim().slice(0, 2000);
       if (!["complaint","premium","purchase","suggestion"].includes(category) || title.length < 5 || body.length < 10) return json(res, 400, { error: "اختر نوع التذكرة واكتب عنواناً ووصفاً واضحين." });
+      const existingRows = await db.all();
+      const openTickets = (existingRows || []).filter(row => String(row.id || "").startsWith("maker_support_ticket_") && row.value?.userId === req.session.user.id && row.value?.status === "open").length;
+      if (openTickets >= 5) return json(res, 429, { error: "لديك 5 تذاكر مفتوحة بالفعل؛ تابعها أو أغلق بعضها أولاً." });
       const ticketNo = Number(await db.get("maker_support_counter") || 0) + 1;
       await db.set("maker_support_counter", ticketNo);
       const user = req.session.user;
@@ -298,6 +301,7 @@ function setupDashboard(app, { bots, db }) {
       if (ticket.status !== "open") return json(res, 409, { error: "التذكرة مغلقة؛ أعد فتحها قبل إضافة رد." });
       const user = req.session.user;
       ticket.messages = Array.isArray(ticket.messages) ? ticket.messages : [];
+      ticket.messages = ticket.messages.slice(-99);
       ticket.messages.push({ userId: user.id, username: user.globalName || user.username, body, at: Date.now(), staff });
       ticket.updatedAt = Date.now();
       await db.set(key, ticket);
@@ -463,7 +467,7 @@ function setupDashboard(app, { bots, db }) {
       const logs = bots.flatMap(client => (client._makerLogs || []).map(log => ({ ...log, botId:client._dashboardBotId || client.user?.id || null, botName:client.user?.username || "بوت غير متصل" }))).sort((a,b)=>b.at-a.at).slice(0,50);
       const trials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value).map(row => row.value).sort((a,b)=>Number(b.startDate||0)-Number(a.startDate||0));
       const hostConsoleLogs = await db.get("maker_host_console_logs") || [];
-      json(res, 200, { trials, hostConsoleLogs: Array.isArray(hostConsoleLogs) ? hostConsoleLogs.slice(-300).reverse() : [], stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), pendingRequests, logs, storedTokenCount: tokenVault.countTokens(), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY) });
+      json(res, 200, { trials, hostConsoleLogs: Array.isArray(hostConsoleLogs) ? hostConsoleLogs.slice(-300).reverse() : [], stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), pendingRequests, logs, storedTokenCount: tokenVault.countTokens(), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: (() => { try { return tokenVault.isConfigured(); } catch { return false; } })() });
     } catch (error) { console.error("[Maker dashboard overview]", error); json(res, 500, { error: "تعذر تحميل بيانات الميكر." }); }
   });
 
