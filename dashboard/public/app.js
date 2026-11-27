@@ -83,11 +83,34 @@ async function renderExchange(root){const data=await api("/dashboard/api/premium
 async function renderPromotions(root){const q=new URLSearchParams({guildId:selectedGuild.id,botId:selectedGuild.botId,mode}),data=await api("/dashboard/api/premium/promotions?"+q.toString());const panel=node("div","dashboard-panel");panel.append(node("h3","","مستويات ترقية الإدارة"),node("p","","عند استلام مسؤول للتكت وزيادة نقاطه، يمنح البوت رتبة أعلى مستوى وصل إليه تلقائياً."));const levels=node("div","settings-grid");(data.levels||[]).forEach((l,i)=>{const row=node("div","store-admin-row"),info=node("div","store-admin-info");info.append(node("b","",l.points+" نقطة"),node("small","",l.roleId));const del=node("button","ghost-button","حذف");del.addEventListener("click",()=>{{const index=data.levels.indexOf(l);if(index>=0)data.levels.splice(index,1)};row.remove();});row.append(info,del);levels.append(row);});const add=node("button","ghost-button","إضافة مستوى");add.addEventListener("click",()=>{const points=Number(prompt("عدد النقاط المطلوب؟","10"));if(!Number.isInteger(points)||points<1)return;const roleId=prompt("آيدي الرتبة؟");if(!roleId)return;const item={points,roleId};data.levels.push(item);const row=node("div","store-admin-row"),info=node("div","store-admin-info"),del=node("button","ghost-button","حذف");info.append(node("b","",item.points+" نقطة"),node("small","",item.roleId));del.addEventListener("click",()=>{const index=data.levels.indexOf(item);if(index>=0)data.levels.splice(index,1);row.remove();});row.append(info,del);levels.append(row);});panel.append(levels,add);const save=node("button","primary-action","حفظ مستويات الترقية");save.addEventListener("click",async()=>{save.disabled=true;try{await api("/dashboard/api/premium/promotions",{method:"POST",body:JSON.stringify({guildId:selectedGuild.id,botId:selectedGuild.botId,mode,levels:data.levels})});notify("تم حفظ مستويات الترقية.");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});panel.append(save);root.append(panel);const board=node("div","dashboard-panel");board.append(node("h3","","لوحة نقاط الإدارة"));(data.points||[]).forEach((p,i)=>board.append(node("p","",(i+1)+". "+p.userId+" — "+p.points+" نقطة")));if(!(data.points||[]).length)board.append(node("p","","لا توجد نقاط مسجلة بعد."));root.append(board);}
 async function renderMakerConsole(root){
  const panel=node("div","dashboard-panel maker-item");
- panel.append(node("h3","","كونسول تشغيل البوت والداشبورد"),node("p","","يعرض سجل عملية Node.js الفعلي المحفوظ من تشغيل البوت والداشبورد، مع إخفاء أنماط توكنات Discord. لا يعرض كونسول لوحة الاستضافة المباشر ولا ينفذ أوامر نظام."));
- const refresh=node("button","ghost-button","تحديث السجل");panel.append(refresh);root.append(panel);
- const list=node("div","dashboard-panel maker-item");root.append(list);
- async function load(){list.replaceChildren(node("h3","","آخر 300 سطر"));const data=await api("/dashboard/api/maker/console");(data.logs||[]).forEach(entry=>{const row=node("div","log-row");row.append(node("b","",String(entry.level||"log").toUpperCase()),node("span","",new Date(entry.at).toLocaleString("ar-SA")),node("small","",entry.message));list.append(row);});if(!(data.logs||[]).length)list.append(node("p","","لا توجد مخرجات محفوظة بعد."));}
- refresh.addEventListener("click",()=>load().catch(e=>notify(e.message,true)));await load();
+ panel.append(node("h3","","كونسول تشغيل البوت والداشبورد"),node("p","","يعرض مخرجات stdout وstderr لعملية Node.js، بما فيها مخرجات المكتبات، مع تنقيح أنماط توكنات Discord. هذا سجل التطبيق وليس اتصالاً مباشراً بكونسول لوحة الاستضافة."));
+ const actions=node("div","maker-actions");
+ const refresh=node("button","ghost-button","تحديث السجل");
+ const copy=node("button","ghost-button","نسخ المخرجات");
+ const state=node("span","maker-status ready","سجل التطبيق");
+ actions.append(refresh,copy,state);panel.append(actions);root.append(panel);
+ const terminalPanel=node("div","dashboard-panel maker-item");
+ const terminal=node("pre","maker-terminal");terminal.dir="ltr";terminal.textContent="جار تحميل المخرجات...";
+ terminalPanel.append(terminal);root.append(terminalPanel);
+ let output="";
+ async function load(){
+  refresh.disabled=true;
+  try{
+   const data=await api("/dashboard/api/maker/console");
+   const entries=(data.logs||[]).slice().reverse();
+   output=entries.map(entry=>{const time=new Date(entry.at).toLocaleTimeString("en-GB");const level=String(entry.level||"stdout").toUpperCase();return "["+time+"] ["+level+"] "+String(entry.message||"");}).join("\\n");
+   terminal.textContent=output||"لا توجد مخرجات محفوظة بعد.";
+   terminal.scrollTop=terminal.scrollHeight;
+   state.textContent="تم التحديث • "+entries.length+" سطر";
+  }finally{refresh.disabled=false;}
+ }
+ refresh.addEventListener("click",()=>load().catch(e=>notify(e.message,true)));
+ copy.addEventListener("click",async()=>{
+  if(!output){notify("لا توجد مخرجات لنسخها.",true);return;}
+  try{await navigator.clipboard.writeText(output);notify("تم نسخ مخرجات الكونسول.");}
+  catch{notify("تعذر النسخ؛ تحقق من صلاحية الحافظة في المتصفح.",true);}
+ });
+ await load();
 }
 async function renderMakerTrials(root){
  const panel=node("div","dashboard-panel maker-item");
