@@ -786,7 +786,14 @@ async function handlePremiumBuyModal(i, db, client) {
             await ticketChannel.send('❌ تعذر التحقق من بيانات البوت بشكل آمن. يرجى التواصل مع الإدارة.');
             return;
         }
-        const userData = await addPremiumUser(i.user.id, premiumData, db, client);
+        let userData;
+        try {
+            userData = await addPremiumUser(i.user.id, premiumData, db, client);
+        } catch (error) {
+            console.error('[Premium] تعذر حفظ الاشتراك بعد الدفع:', error.message);
+            await ticketChannel.send('❌ تم استلام إشعار التحويل لكن تعذر إكمال التفعيل تلقائياً. تم إبقاء التكت مفتوحاً لمراجعة الإدارة.').catch(() => {});
+            return;
+        }
 
         const confirmEmbed = new EmbedBuilder()
             .setTitle(' تم تأكيد الدفع بنجاح!')
