@@ -93,11 +93,12 @@ async function loadPublicShowcase(){
  }catch(e){host.replaceChildren(node("p","showcase-empty","تعذر تحميل الإحصائيات العامة حالياً."));}
 }
 async function renderIdentity(root){
- const panel=node("div","dashboard-panel");panel.append(node("h3","","هوية البوت داخل السيرفر"),node("p","","يمكن تغيير الاسم المستعار للبوت في السيرفر المحدد. صورة الحساب الحالية للعرض فقط؛ تغيير الصورة العامة يحتاج مساراً منفصلاً."));root.append(panel);
+ const panel=node("div","dashboard-panel");panel.append(node("h3","","هوية البوت"),node("p","","يمكن تحديث الاسم الظاهر داخل السيرفر وصورة الحساب العامة للبوت. تغيير البنر العام غير متاح من واجهة Discord Bot API المستخدمة هنا."));root.append(panel);
  try{const data=await api("/dashboard/api/identity?"+new URLSearchParams({guildId:selectedGuild.id,botId:selectedGuild.botId,mode}).toString());
  const head=node("div","identity-preview");if(data.avatar){const img=node("img","");img.src=data.avatar;img.alt="Bot avatar";head.append(img);}const info=node("div","");info.append(node("b","",data.botName),node("small","",data.guildName));head.append(info);panel.append(head);
  const field=makeField("botNickname","اسم البوت داخل السيرفر (اتركه فارغاً لإعادة الاسم الافتراضي)","text",data.nickname||"");field.querySelector("input").dataset.field="botNickname";panel.append(field);
- const save=node("button","primary-action","حفظ الاسم داخل السيرفر");save.addEventListener("click",async()=>{save.disabled=true;try{await api("/dashboard/api/identity",{method:"POST",body:JSON.stringify({guildId:selectedGuild.id,botId:selectedGuild.botId,mode,nickname:panel.querySelector('[data-field="botNickname"]').value})});notify("تم تحديث اسم البوت داخل السيرفر.");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});panel.append(save);
+ const avatarField=makeField("botAvatarUrl","رابط صورة الحساب الجديدة (Discord CDN أو Imgur)","url","");avatarField.querySelector("input").dataset.field="botAvatarUrl";panel.append(avatarField);
+ const save=node("button","primary-action","حفظ الهوية");save.addEventListener("click",async()=>{save.disabled=true;try{await api("/dashboard/api/identity",{method:"POST",body:JSON.stringify({guildId:selectedGuild.id,botId:selectedGuild.botId,mode,nickname:panel.querySelector('[data-field="botNickname"]').value,avatarUrl:panel.querySelector('[data-field="botAvatarUrl"]').value})});notify("تم تحديث الهوية.");renderPage("identity");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});panel.append(save);
  }catch(e){panel.append(node("p","showcase-empty",e.message));}
 }
 async function renderTicketManager(root){
