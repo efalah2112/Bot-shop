@@ -93,9 +93,12 @@ function setupDashboard(app, { bots, db }) {
       const uniqueGuilds = new Map();
       let ratingTotal = 0;
       let ratingCount = 0;
+      const processedRatingGuilds = new Set();
       for (const bot of bots.filter(client => client && client.isReady() && client.user)) {
         for (const guild of bot.guilds.cache.values()) {
           if (!uniqueGuilds.has(guild.id)) uniqueGuilds.set(guild.id, guild);
+          if (processedRatingGuilds.has(guild.id)) continue;
+          processedRatingGuilds.add(guild.id);
           const ratingChannelId = await db.get("rating_ch_" + guild.id);
           if (!ratingChannelId) continue;
           const ratingChannel = guild.channels.cache.get(ratingChannelId);
