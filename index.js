@@ -88,7 +88,8 @@ if (generalToken && !config.tokens.includes(generalToken)) {
     config.tokens.push(generalToken);
 }
 
-const botTokens = config.tokens.filter((t) => t && t.trim() !== "" && t !== makerToken);
+const dedicatedMakerTokens = new Set([makerToken, config.makerToken].filter(Boolean));
+const botTokens = config.tokens.filter((t) => t && t.trim() !== "" && !dedicatedMakerTokens.has(t));
 
 function createBotClient(token, index) {
   const client = new Client({
