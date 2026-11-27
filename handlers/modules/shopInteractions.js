@@ -3988,6 +3988,22 @@ client.on("interactionCreate", async (interaction) => {
 
     const currentPts = (await db.get(`ticket_pts_${interaction.user.id}_${guildId}`)) || 0;
     await db.set(`ticket_pts_${interaction.user.id}_${guildId}`, currentPts + 1);
+    const promotionLevels = (await db.get(`ticket_promotion_levels_${guildId}`)) || [];
+    if (promotionLevels.length) {
+        const eligible = promotionLevels.filter(level => Number(level.points) <= currentPts + 1).sort((a, b) => Number(b.points) - Number(a.points));
+        const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+        const targetLevel = eligible[0];
+        if (member && targetLevel && interaction.guild.roles.cache.has(targetLevel.roleId)) {
+            for (const level of promotionLevels) {
+                if (level.roleId !== targetLevel.roleId && member.roles.cache.has(level.roleId)) {
+                    await member.roles.remove(level.roleId, "Premium ticket points promotion").catch(() => {});
+                }
+            }
+            if (!member.roles.cache.has(targetLevel.roleId)) {
+                await member.roles.add(targetLevel.roleId, "Premium ticket points promotion").catch(() => {});
+            }
+        }
+    }
 
     // ✅ إرسال متابعة بدل رد
     const claimContainer = new ContainerBuilder()
