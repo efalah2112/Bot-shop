@@ -310,6 +310,85 @@ function setupDashboard(app, { bots, db }) {
       await db.set(key, ticket); json(res, 200, { success: true, status });
     } catch (error) { console.error("[Support ticket status]", error); json(res, 500, { error: "تعذر تحديث حالة التذكرة." }); }
   });
+  app.get("/dashboard/api/maker/console", requireUser, requireMaker, async (_req, res) => {
+    try {
+      const logs = await db.get("maker_host_console_logs") || [];
+      json(res, 200, { logs: Array.isArray(logs) ? logs.slice(-300).reverse() : [], source: "node-process" });
+    } catch (error) { console.error("[Maker host console]", error.message); json(res, 500, { error: "تعذر تحميل سجل تشغيل الهوست." }); }
+  });
+
+  app.get("/dashboard/api/maker/trials", requireUser, requireMaker, async (_req, res) => {
+    try {
+      const rows = await db.all();
+      const trials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value)
+        .map(row => row.value)
+        .sort((a, b) => Number(b.startDate || 0) - Number(a.startDate || 0));
+      json(res, 200, { trials });
+    } catch (error) { console.error("[Maker trials]", error); json(res, 500, { error: "تعذر تحميل فترات التشغيل التجريبية." }); }
+  });
+
+  app.post("/dashboard/api/maker/trials", requireUser, requireMaker, async (req, res) => {
+    let token = "";
+    try {
+      token = String(req.body?.token || "").trim();
+      const guildId = String(req.body?.guildId || "");
+      const ownerId = String(req.body?.ownerId || "");
+      const durationHours = Number(req.body?.durationHours);
+      const allowedHours = new Set([1, 6, 12, 24, 72, 168]);
+      if (!token || token.length > 300 || !snowflake(guildId) || !snowflake(ownerId) || !allowedHours.has(durationHours)) {
+        return json(res, 400, { error: "تحقق من التوكن وآيدي السيرفر وآيدي المالك والمدة المحددة." });
+      }
+      if (!tokenVault.isConfigured()) return json(res, 503, { error: "مفتاح تشفير التوكنات غير مضبوط في الاستضافة." });
+      const identityResponse = await fetch(DISCORD_API + "/users/@me", { headers: { Authorization: "Bot " + token } });
+      if (!identityResponse.ok) return json(res, 400, { error: "التوكن غير صالح أو تعذر التحقق منه." });
+      const identity = await identityResponse.json();
+      if (!snowflake(identity.id) || identity.id === maker.MAKER_BOT_ID) return json(res, 400, { error: "لا يمكن استخدام بوت الميكر كتجربة." });
+      const guildResponse = await fetch(DISCORD_API + "/guilds/" + guildId, { headers: { Authorization: "Bot " + token } });
+      if (!guildResponse.ok) return json(res, 400, { error: "البوت غير موجود في السيرفر المحدد أو لا يستطيع الوصول إليه." });
+      const trialKey = "maker_free_trial_" + identity.id;
+      const existingTrial = await db.get(trialKey);
+      if (existingTrial && existingTrial.status === "active" && Number(existingTrial.endDate) > Date.now()) return json(res, 409, { error: "لدى هذا البوت فترة تجريبية نشطة بالفعل." });
+      const rows = await db.all();
+      const paid = (rows || []).some(row => String(row.id || "").startsWith("premium_user_") && row.value?.botId === identity.id && row.value.active && Number(row.value.endDate) > Date.now());
+      if (paid) return json(res, 409, { error: "هذا البوت لديه اشتراك Premium مدفوع نشط بالفعل." });
+      const makerClient = getBot(maker.MAKER_BOT_ID);
+      if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
+      if (tokenVault.hasToken(token) || makerClient._hasRegisteredBotToken?.(token)) return json(res, 409, { error: "هذا التوكن مسجل مسبقاً في النظام." });
+      tokenVault.addToken(token);
+      let runtimeClient;
+      try {
+        runtimeClient = await makerClient._registerPremiumBot(token);
+        if (!runtimeClient) throw new Error("Bot runtime was not created");
+        runtimeClient._dashboardBotId = identity.id;
+        runtimeClient._dashboardOwnerId = ownerId;
+      } catch (error) {
+        tokenVault.removeToken(token);
+        throw error;
+      }
+      const now = Date.now();
+      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
+      await db.set(trialKey, trial);
+      json(res, 201, { created: true, trial });
+    } catch (error) {
+      console.error("[Maker free Premium trial]", error.message);
+      json(res, 500, { error: "تعذر إنشاء فترة Premium التجريبية وتشغيل البوت." });
+    } finally { token = ""; }
+  });
+
+  app.post("/dashboard/api/maker/trials/:botId/revoke", requireUser, requireMaker, async (req, res) => {
+    try {
+      const botId = String(req.params.botId || "");
+      if (!snowflake(botId)) return json(res, 400, { error: "آيدي البوت غير صالح." });
+      const key = "maker_free_trial_" + botId, trial = await db.get(key);
+      if (!trial) return json(res, 404, { error: "الفترة التجريبية غير موجودة." });
+      trial.active = false; trial.status = "revoked"; trial.endDate = Math.min(Number(trial.endDate || Date.now()), Date.now()); trial.revokedAt = Date.now(); trial.revokedBy = req.session.user.id;
+      await db.set(key, trial);
+      const makerClient = getBot(maker.MAKER_BOT_ID);
+      if (makerClient?._controlPremiumBot) await makerClient._controlPremiumBot(botId, false);
+      json(res, 200, { revoked: true });
+    } catch (error) { console.error("[Maker trial revoke]", error); json(res, 500, { error: "تعذر إيقاف الفترة التجريبية." }); }
+  });
+
   app.post("/dashboard/api/maker/tokens", requireUser, requireMaker, async (req, res) => {
     let token = "";
     try {
@@ -365,7 +444,9 @@ function setupDashboard(app, { bots, db }) {
       const pendingCount = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_")).length;
       const pendingRequests = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_") && row.value).map(row => ({ userId:String(row.value.userId || ""), plan:String(row.value.planLabel || row.value.plan || ""), price:Number(row.value.price || 0), botId:String(row.value.botId || ""), guildId:String(row.value.guildId || ""), channelId:String(row.value.channelId || ""), timestamp:Number(row.value.timestamp || 0), tokenStored:Boolean(row.value.botTokenEncrypted) }));
       const logs = bots.flatMap(client => (client._makerLogs || []).map(log => ({ ...log, botId:client._dashboardBotId || client.user?.id || null, botName:client.user?.username || "بوت غير متصل" }))).sort((a,b)=>b.at-a.at).slice(0,50);
-      json(res, 200, { stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), pendingRequests, logs, storedTokenCount: tokenVault.countTokens(), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY) });
+      const trials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value).map(row => row.value).sort((a,b)=>Number(b.startDate||0)-Number(a.startDate||0));
+      const hostConsoleLogs = await db.get("maker_host_console_logs") || [];
+      json(res, 200, { trials, hostConsoleLogs: Array.isArray(hostConsoleLogs) ? hostConsoleLogs.slice(-300).reverse() : [], stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), pendingRequests, logs, storedTokenCount: tokenVault.countTokens(), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY) });
     } catch (error) { console.error("[Maker dashboard overview]", error); json(res, 500, { error: "تعذر تحميل بيانات الميكر." }); }
   });
 
@@ -494,9 +575,11 @@ function setupDashboard(app, { bots, db }) {
       await developerIdsReady;
       const userId = req.session.user.id;
       const records = await getAllPremiumRecords();
+      const trialRows = await db.all();
+      const activeTrials = (trialRows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value?.active && Number(row.value.endDate) > Date.now()).map(row => row.value);
       const premiumAvailable = records.some(record =>
         record.userId === userId || record.dashboardOwnerId === userId
-      );
+      ) || activeTrials.some(trial => trial.ownerId === userId);
       json(res, 200, {
         authenticated: true,
         user: req.session.user,
