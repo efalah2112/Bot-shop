@@ -694,6 +694,98 @@ function setupDashboard(app, { bots, db }) {
     }
   });
 
+  app.get("/dashboard/api/store-types", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const entries = await db.all();
+      const suffix = "_" + access.guildId;
+      const types = [];
+      for (const entry of entries || []) {
+        const key = String(entry.id || "");
+        if (!key.startsWith("categoryMentions_") || !key.endsWith(suffix)) continue;
+        const categoryId = key.slice("categoryMentions_".length, -suffix.length);
+        const category = access.guild.channels.cache.get(categoryId);
+        const value = entry.value || {};
+        types.push({
+          categoryId, categoryName: category?.name || "كاتيغوري غير موجود",
+          name: String(value.nametype || ""), everyoneMentions: Number(value.everyoneMentions || 0),
+          hereMentions: Number(value.hereMentions || 0), shopRoleMentions: Number(value.shopRoleMentions || 0),
+          pirefix: String(value.pirefix || ""), shopEmoji: String(value.shopEmoji || ""),
+          shoprole: value.shoprole || "", shopmen: value.shopmen || "",
+          maxWarns: Number(value.maxWarns || 0), hasTax: Boolean(value.hasTax),
+          taxPrice: Number(value.taxPrice || 0), shopPrice: Number(value.shopPrice || 0)
+        });
+      }
+      json(res, 200, { types });
+    } catch (error) {
+      console.error("[Dashboard store types]", error.message);
+      json(res, 500, { error: "تعذر تحميل أنواع المتاجر." });
+    }
+  });
+
+  app.post("/dashboard/api/store-types", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.body || {});
+      if (!access) return;
+      const body = req.body || {};
+      const categoryId = String(body.categoryId || "");
+      const name = String(body.name || "").trim().slice(0, 60);
+      const count = (value, max, label) => {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(label + " غير صالح.");
+        return n;
+      };
+      if (!snowflake(categoryId)) return json(res, 400, { error: "اختر كاتيغوري صحيحاً." });
+      const category = access.guild.channels.cache.get(categoryId);
+      if (!category || category.type !== 4) return json(res, 400, { error: "الكاتيغوري المحدد غير موجود." });
+      if (!name) return json(res, 400, { error: "اكتب اسم نوع المتجر." });
+      const shoprole = String(body.shoprole || "");
+      const shopmen = String(body.shopmen || "");
+      if (![shoprole, shopmen].every(id => snowflake(id) && access.guild.roles.cache.has(id) && !access.guild.roles.cache.get(id).managed)) {
+        return json(res, 400, { error: "اختر رتبتي المتجر والمنشن من رتب السيرفر." });
+      }
+      const hasTax = Boolean(body.hasTax);
+      const taxPrice = count(body.taxPrice ?? 0, 1000000000, "سعر الضريبة");
+      if (hasTax && taxPrice < 1) return json(res, 400, { error: "سعر الضريبة مطلوب عند تفعيلها." });
+      const value = {
+        categoryId, nametype: name,
+        everyoneMentions: count(body.everyoneMentions ?? 0, 9999, "عدد Everyone"),
+        hereMentions: count(body.hereMentions ?? 0, 9999, "عدد Here"),
+        shopRoleMentions: count(body.shopRoleMentions ?? 0, 9999, "عدد منشن المتجر"),
+        pirefix: String(body.pirefix || "").trim().slice(0, 24),
+        shopEmoji: String(body.shopEmoji || "").trim().slice(0, 64),
+        shoprole, shopmen, maxWarns: count(body.maxWarns ?? 0, 999, "حد التحذيرات"),
+        hasTax, taxPrice: hasTax ? taxPrice : 0,
+        shopPrice: count(body.shopPrice ?? 0, 1000000000, "سعر المتجر"),
+        guildId: access.guildId
+      };
+      await db.set("categoryMentions_" + categoryId + "_" + access.guildId, value);
+      await audit(access.guildId, req.session.user, "store-types", ["حفظ نوع " + name]);
+      json(res, 200, { saved: true, type: value });
+    } catch (error) {
+      const message = error.message || "";
+      if (/غير صالح|مطلوب|اختر|اكتب/.test(message)) return json(res, 400, { error: message });
+      console.error("[Dashboard save store type]", error);
+      json(res, 500, { error: "تعذر حفظ نوع المتجر." });
+    }
+  });
+
+  app.delete("/dashboard/api/store-types/:categoryId", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const categoryId = String(req.params.categoryId || "");
+      if (!snowflake(categoryId)) return json(res, 400, { error: "معرّف الكاتيغوري غير صالح." });
+      await db.delete("categoryMentions_" + categoryId + "_" + access.guildId);
+      await audit(access.guildId, req.session.user, "store-types", ["حذف تعريف نوع " + categoryId]);
+      json(res, 200, { deleted: true });
+    } catch (error) {
+      console.error("[Dashboard delete store type]", error.message);
+      json(res, 500, { error: "تعذر حذف نوع المتجر." });
+    }
+  });
+
   app.get("/dashboard/api/operations", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
