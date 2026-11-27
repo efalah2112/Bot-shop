@@ -391,7 +391,7 @@ function setupDashboard(app, { bots, db }) {
     },
     stores: {
       shopAdmin: ["shopad", "role"], highStaff: ["highstaff", "role"],
-      vacationEnabled: ["shopvacation", "boolean"], disableAuto: ["disableauto", "boolean"],
+      shopVacationPrice: ["shopvacation", "money"], disableAutoPrice: ["disableauto", "money"],
       activateShopPrice: ["activateshopprice", "money"], sellShopPrice: ["sellshopprice", "money"],
       autoMessagePrice: ["automessage", "money"]
     },
