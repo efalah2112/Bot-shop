@@ -358,8 +358,12 @@ function setupDashboard(app, { bots, db }) {
       if (paid) return json(res, 409, { error: "هذا البوت لديه اشتراك Premium مدفوع نشط بالفعل." });
       const makerClient = getBot(maker.MAKER_BOT_ID);
       if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
-      if (tokenVault.hasToken(token) || makerClient._hasRegisteredBotToken?.(token)) return json(res, 409, { error: "هذا التوكن مسجل مسبقاً في النظام." });
-      tokenVault.addToken(token);
+      const alreadyRunning = Boolean(makerClient._hasRegisteredBotToken?.(token));
+      if (tokenVault.hasToken(token) && !alreadyRunning) return json(res, 409, { error: "التوكن محفوظ مسبقاً لكنه غير موجود ضمن جلسات التشغيل الحالية." });
+      const addedToken = tokenVault.addToken(token);
+      const now = Date.now();
+      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
+      await db.set(trialKey, trial);
       let runtimeClient;
       try {
         runtimeClient = await makerClient._registerPremiumBot(token);
@@ -367,12 +371,10 @@ function setupDashboard(app, { bots, db }) {
         runtimeClient._dashboardBotId = identity.id;
         runtimeClient._dashboardOwnerId = ownerId;
       } catch (error) {
-        tokenVault.removeToken(token);
+        await db.delete(trialKey);
+        if (addedToken) tokenVault.removeToken(token);
         throw error;
       }
-      const now = Date.now();
-      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
-      await db.set(trialKey, trial);
       json(res, 201, { created: true, trial });
     } catch (error) {
       console.error("[Maker free Premium trial]", error.message);
