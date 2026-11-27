@@ -920,21 +920,20 @@ function setupDashboard(app, { bots, db }) {
         });
       }
       const shortcutDefs = [
-        ["mention", "اختصار المنشنات", "shortcut_mention", "منشن"],
-        ["warning", "اختصار التحذير", "shortcut_warning", "+تحذير"],
-        ["delete", "اختصار الحذف", "shortcut_delete", "+حذف"],
-        ["tax", "اختصار الضريبة", "shortcut_tax", "+tax"],
-        ["call", "اختصار النداء", "shortcut_call", "+come"],
-        ["ping", "اختصار البنق", "shortcut_ping", "!ping"],
-        ["setShopOwner", "تحديد صاحب المتجر", "shortcut_setshopowner", "+تحديد-صاحب-المتجر"],
-        ["addMentions", "إضافة منشنات", "shortcut_addmentions", "+اضافة-منشنات"],
-        ["setMentions", "تحديد المنشنات", "shortcut_setmentions", "+تحديد-المنشنات"],
-        ["addShopData", "إضافة متجر للداتا", "shortcut_addshopdata", "+اضافة-متجر-للداتا"],
-        ["createShop", "إنشاء متجر", "shortcut_createshop", "+انشاء-متجر"]
+        ["mention", "المنشنات", "shortcut_mention", "منشن", "اكتب الاختصار داخل قناة المتجر لعرض لوحة المنشنات."],
+        ["warning", "التحذير", "shortcut_warning", "+تحذير", "الاستخدام: الاختصار ثم سبب التحذير."],
+        ["delete", "الحذف", "shortcut_delete", "+حذف", "الاستخدام: الاختصار ثم سبب الحذف."],
+        ["tax", "الضريبة", "shortcut_tax", "+tax", "الاستخدام: الاختصار ثم المبلغ، مثال: +tax 1000."],
+        ["call", "النداء", "shortcut_call", "+come", "الاستخدام: الاختصار ثم منشن العضو ثم سبب الاستدعاء."],
+        ["ping", "البنق", "shortcut_ping", "!ping", "اكتب الاختصار وحده لعرض استجابة البوت."],
+        ["setShopOwner", "تحديد صاحب المتجر", "shortcut_setshopowner", "+تحديد-صاحب-المتجر", "الاستخدام: الاختصار ثم منشن العضو."],
+        ["addMentions", "إضافة منشنات", "shortcut_addmentions", "+اضافة-منشنات", "الاستخدام: الاختصار ثم العدد داخل قناة المتجر."],
+        ["setMentions", "تحديد المنشنات", "shortcut_setmentions", "+تحديد-المنشنات", "الاستخدام: الاختصار ثم العدد داخل قناة المتجر."],
+        ["addShopData", "إضافة متجر للداتا", "shortcut_addshopdata", "+اضافة-متجر-للداتا", "الاستخدام: الاختصار ثم منشن صاحب المتجر ثم اسم المتجر."],
+        ["createShop", "إنشاء متجر", "shortcut_createshop", "+انشاء-متجر", "الاستخدام: الاختصار ثم منشن صاحب المتجر."]
       ];
-      const textCommands = await Promise.all(shortcutDefs.map(async ([key, label, dbKey, fallback]) => ({
-        key, label, command: await db.get(dbKey + "_" + access.guildId) || fallback,
-        description: label + " — أضف المعاملات المطلوبة بعد الاختصار."
+      const textCommands = await Promise.all(shortcutDefs.map(async ([key, label, dbKey, fallback, description]) => ({
+        key, label, command: await db.get(dbKey + "_" + access.guildId) || fallback, description
       })));
       json(res, 200, { commands: [...all.values()].sort((a, b) => a.name.localeCompare(b.name)), textCommands });
     } catch (error) {
