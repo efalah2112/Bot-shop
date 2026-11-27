@@ -223,7 +223,7 @@ function setupDashboard(app, { bots, db }) {
   };
   app.get("/dashboard/api/maker/developers", requireUser, requireMakerOwner, async (_req, res) => {
     const stored = await db.get("dashboard_developer_ids") || [];
-    json(res, 200, { developers: [...new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds, ...(Array.isArray(stored) ? stored : [])])] });
+    json(res, 200, { ownerId: maker.MAKER_OWNER_ID, envManaged: [...envDeveloperIds], developers: [...new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds, ...(Array.isArray(stored) ? stored : [])])] });
   });
   app.post("/dashboard/api/maker/developers", requireUser, requireMakerOwner, async (req, res) => {
     const userId = String(req.body?.userId || "");
