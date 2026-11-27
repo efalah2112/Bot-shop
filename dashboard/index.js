@@ -398,7 +398,7 @@ function setupDashboard(app, { bots, db }) {
     auction: {
       auctionAdmin: ["auctionad", "role"], auctionRoom: ["auctionroom", "channel"],
       auctionMentionRole: ["auctionmzadrole", "role"], auctionRules: ["mzad_rules", "words"],
-      auctionInfo: ["mzad_info", "string"], middlemanLink: ["mzad_middleman_link", "url"],
+      auctionInfo: ["mzad_info", "longText"], middlemanLink: ["mzad_middleman_link", "url"],
       publicAuctionCategory: ["mzad2_pub_cat", "category"], privateAuctionCategory: ["mzad2_ticket_cat", "category"]
     },
     orders: {
@@ -671,6 +671,11 @@ function setupDashboard(app, { bots, db }) {
         } else if (type === "string") {
           const raw = String(value || "").trim();
           if (raw.length > 40) return json(res, 400, { error: "النص طويل جداً." });
+          if (raw) await db.set(key + "_" + access.guildId, raw);
+          else await db.delete(key + "_" + access.guildId);
+        } else if (type === "longText") {
+          const raw = String(value || "").trim();
+          if (raw.length > 1800) return json(res, 400, { error: "النص يتجاوز 1800 حرف." });
           if (raw) await db.set(key + "_" + access.guildId, raw);
           else await db.delete(key + "_" + access.guildId);
         }
