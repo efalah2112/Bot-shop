@@ -291,6 +291,11 @@ function createBotClient(token, index) {
 
   // ========== READY - COMMAND REGISTRATION ==========
  client.on("clientReady", async () => {
+    if (makerToken && token === makerToken && client.user.id !== maker.MAKER_BOT_ID) {
+      console.error("[Maker] BOT_TOKEN_MAKER belongs to a different Discord application. Expected bot ID: " + maker.MAKER_BOT_ID + "; received: " + client.user.id);
+      await client.destroy();
+      return;
+    }
     console.log(chalk.bold.underline.blue(`✅ Bot ${index + 1} logged in as ${client.user.tag}`));
 
     // ===== إعداد REST مع إعادة المحاولة =====
