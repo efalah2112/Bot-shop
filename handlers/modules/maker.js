@@ -1155,10 +1155,38 @@ async function checkFreeTrialExpiries(client, db, bots) {
         trial.expiredAt = now;
         delete trial.botTokenEncrypted;
         await db.set(entry.id, trial);
+
         const target = (bots || []).find(item => (item._dashboardBotId || item.user?.id) === trial.botId);
-        if (trial.wasRunningBeforeTrial && target?.isReady()) {
-            target.emit("clientReady");
-        } else if (client && typeof client._controlPremiumBot === "function") {
+        if (!target) {
+            if (client && typeof client._controlPremiumBot === "function") {
+                await client._controlPremiumBot(trial.botId, false).catch(error => console.error("[Premium trial] تعذر إيقاف البوت المنتهي:", error.message));
+            }
+            continue;
+        }
+
+        const stillPremium = typeof target._refreshPremiumEntitlement === "function"
+            ? await target._refreshPremiumEntitlement().catch(() => false)
+            : false;
+        target._premiumEntitled = Boolean(stillPremium);
+
+        // A bot that was already running before the developer's temporary grant
+        // must remain online; only its Premium-only features are removed.
+        if (trial.wasRunningBeforeTrial || stillPremium) {
+            if (stillPremium && typeof target._dashboardRestoreMzad2Timers === "function") {
+                await target._dashboardRestoreMzad2Timers().catch(() => {});
+            }
+            if (!stillPremium && typeof target._dashboardStopPrivateAuctions === "function") {
+                await target._dashboardStopPrivateAuctions().catch(() => {});
+            }
+            if (typeof target._dashboardRefreshExchangeCron === "function") {
+                for (const guild of target.guilds.cache.values()) {
+                    await target._dashboardRefreshExchangeCron(guild.id, !stillPremium).catch(() => {});
+                }
+            }
+            continue;
+        }
+
+        if (client && typeof client._controlPremiumBot === "function") {
             await client._controlPremiumBot(trial.botId, false).catch(error => console.error("[Premium trial] تعذر إيقاف البوت المنتهي:", error.message));
         }
     }
