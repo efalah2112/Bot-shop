@@ -905,11 +905,19 @@ function setupDashboard(app, { bots, db }) {
         } else if (key.startsWith("order_ticket_") && key.endsWith(suffix)) {
           const value = entry.value || {};
           if (value.channelId) orders.push({ userId: value.userId || null, channelId: value.channelId, channelName: access.guild.channels.cache.get(value.channelId)?.name || "تكت غير موجود" });
+        } else if (key.startsWith("active_auction_")) {
+          const roomId = key.slice("active_auction_".length);
+          const value = entry.value || {};
+          const room = access.guild.channels.cache.get(roomId);
+          if (!room || value.guildId !== access.guildId) continue;
+          const draft = value.draft || {};
+          auctions.push({ roomId, roomName: room.name || "مزاد", ownerId: value.ownerId || draft.owner || null, title: draft.title || draft.name || draft.itemName || "مزاد نشط", status: value.paused ? "متوقف مؤقتاً" : "نشط" });
         } else if (key.startsWith("active_mzad2_")) {
           const roomId = key.slice("active_mzad2_".length);
-          if (!access.guild.channels.cache.has(roomId)) continue;
           const value = entry.value || {};
-          auctions.push({ roomId, roomName: access.guild.channels.cache.get(roomId)?.name || "مزاد", ownerId: value.ownerId || value.draft?.owner || null, title: value.draft?.title || value.draft?.name || "مزاد نشط" });
+          const room = access.guild.channels.cache.get(roomId);
+          if (!room || (value.guildId && value.guildId !== access.guildId)) continue;
+          auctions.push({ roomId, roomName: room.name || "مزاد", ownerId: value.ownerId || value.draft?.owner || null, title: value.draft?.title || value.draft?.name || "مزاد نشط", status: value.paused ? "متوقف مؤقتاً" : "نشط" });
         }
       }
       stores.sort((a,b) => a.channelName.localeCompare(b.channelName));
