@@ -356,6 +356,7 @@ function setupDashboard(app, { bots, db }) {
       if (!snowflake(userId) || !snowflake(newOwnerId) || userId === newOwnerId) return json(res, 400, { error: "معرّف المالك الجديد غير صالح." });
       const oldKey = "premium_user_" + userId, record = await db.get(oldKey);
       if (!record) return json(res, 404, { error: "الاشتراك غير موجود." });
+      if (await db.get("premium_user_" + newOwnerId)) return json(res, 409, { error: "المالك الجديد لديه اشتراك مسجل بالفعل." });
       const makerClient = getBot(maker.MAKER_BOT_ID); if (makerClient?.users?.fetch) await makerClient.users.fetch(newOwnerId);
       await db.delete(oldKey); record.userId = newOwnerId; record.dashboardOwnerId = newOwnerId; await db.set("premium_user_" + newOwnerId, record);
       json(res, 200, { transferred: true, userId: newOwnerId });
