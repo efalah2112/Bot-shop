@@ -336,6 +336,7 @@ function setupDashboard(app, { bots, db }) {
       if (!snowflake(botId) || botId === maker.MAKER_BOT_ID) return json(res, 400, { error: "لا يمكن حذف هذا البوت." });
       const client = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
       if (!client?._botToken) return json(res, 404, { error: "لم يتم العثور على توكن محفوظ لهذا البوت." });
+      if (client._dashboardTokenSource !== "config") return json(res, 409, { error: "هذا التوكن مرتبط بمتغير أو إعداد أساسي في الاستضافة ولا يمكن حذفه من لوحة الميكر." });
       const rows = await db.all();
       const activePremium = (rows || []).some(row => String(row.id || "").startsWith("premium_user_") && row.value?.botId === botId && row.value.active && Number(row.value.endDate) > Date.now());
       if (activePremium) return json(res, 409, { error: "لا يمكن حذف بوت لديه اشتراك Premium نشط." });
@@ -357,7 +358,7 @@ function setupDashboard(app, { bots, db }) {
         const botId = client._dashboardBotId || client.user?.id || null;
         if (botId) client._dashboardBotId = botId;
         const subscription = premiumRecords.find(record => record.botId === botId);
-        return { id: botId, username: client.user?.username || (botId ? "بوت غير متصل" : "بوت لم يسجل الدخول"), avatar: client.user?.displayAvatarURL?.({ size: 96 }) || null, ready: Boolean(client.isReady()), guildCount: client.guilds?.cache?.size || 0, ping: Number.isFinite(client.ws?.ping) ? client.ws.ping : null, uptime: client.uptime || null, kind: botId === maker.MAKER_BOT_ID ? "maker" : premiumBotIds.has(botId) ? "premium" : "standard", ownerId: subscription?.userId || client._dashboardOwnerId || null, canControl: Boolean(botId && botId !== maker.MAKER_BOT_ID && client._botToken) };
+        return { id: botId, username: client.user?.username || (botId ? "بوت غير متصل" : "بوت لم يسجل الدخول"), avatar: client.user?.displayAvatarURL?.({ size: 96 }) || null, ready: Boolean(client.isReady()), guildCount: client.guilds?.cache?.size || 0, ping: Number.isFinite(client.ws?.ping) ? client.ws.ping : null, uptime: client.uptime || null, kind: botId === maker.MAKER_BOT_ID ? "maker" : premiumBotIds.has(botId) ? "premium" : "standard", ownerId: subscription?.userId || client._dashboardOwnerId || null, canControl: Boolean(botId && botId !== maker.MAKER_BOT_ID && client._botToken), canDelete: Boolean(client._dashboardTokenSource === "config") };
       });
       const subscriptions = premiumRecords.map(record => ({ userId: String(record.userId || ""), botId: String(record.botId || ""), guildId: String(record.guildId || ""), plan: String(record.planLabel || record.plan || "Premium"), active: Boolean(record.active), startDate: Number(record.startDate || 0), endDate: Number(record.endDate || 0), status: record.active && Number(record.endDate) > Date.now() ? "active" : Number(record.endDate) <= Date.now() ? "expired" : "inactive", renewalCount: Number(record.renewalCount || 0), price: Number(record.price || 0) }));
       const settings = await db.get("premium_settings") || null;
