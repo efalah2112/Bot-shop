@@ -86,6 +86,51 @@ function setupDashboard(app, { bots, db }) {
   app.use("/dashboard/assets", express.static(publicDir));
 
   const json = (res, status, data) => res.status(status).json(data);
+
+  // Public dashboard proof points: only list guilds whose owners explicitly enabled showcase.
+  app.get("/dashboard/api/public-stats", async (_req, res) => {
+    try {
+      const uniqueGuilds = new Map();
+      let ratingTotal = 0;
+      let ratingCount = 0;
+      for (const bot of bots.filter(client => client && client.isReady() && client.user)) {
+        for (const guild of bot.guilds.cache.values()) {
+          if (!uniqueGuilds.has(guild.id)) uniqueGuilds.set(guild.id, guild);
+          const ratingChannelId = await db.get("rating_ch_" + guild.id);
+          if (!ratingChannelId) continue;
+          const ratingChannel = guild.channels.cache.get(ratingChannelId);
+          if (!ratingChannel || !ratingChannel.isTextBased() || !ratingChannel.messages) continue;
+          const messages = await ratingChannel.messages.fetch({ limit: 100 }).catch(() => null);
+          if (!messages) continue;
+          for (const message of messages.values()) {
+            const content = [message.content, ...(message.embeds || []).map(embed => embed.description || "")].join("\\n");
+            const match = content.match(/التقييم:\\s*⭐+\\s*\\((\\d)\\/5\\)/);
+            if (!match) continue;
+            const score = Number(match[1]);
+            if (score >= 1 && score <= 5) { ratingTotal += score; ratingCount++; }
+          }
+        }
+      }
+      const allGuilds = [...uniqueGuilds.values()];
+      const showcase = [];
+      for (const guild of allGuilds) {
+        if (await db.get("dashboard_public_showcase_" + guild.id) !== true) continue;
+        showcase.push({ id: guild.id, name: guild.name, icon: guild.iconURL({ size: 96 }), memberCount: Number(guild.memberCount || 0) });
+      }
+      showcase.sort((a, b) => b.memberCount - a.memberCount);
+      json(res, 200, {
+        botCount: bots.filter(client => client && client.isReady() && client.user).length,
+        serverCount: allGuilds.length,
+        memberCount: allGuilds.reduce((sum, guild) => sum + Number(guild.memberCount || 0), 0),
+        ratingCount,
+        ratingAverage: ratingCount ? Number((ratingTotal / ratingCount).toFixed(2)) : null,
+        topGuilds: showcase.slice(0, 5)
+      });
+    } catch (error) {
+      console.error("[Dashboard public stats]", error.message);
+      json(res, 200, { botCount: 0, serverCount: 0, memberCount: 0, ratingCount: 0, ratingAverage: null, topGuilds: [] });
+    }
+  });
   const requireOAuthConfig = (res) => {
     if (!clientId || !clientSecret || !redirectUri || !sessionSecret) {
       json(res, 503, { error: "Dashboard OAuth is not configured. Set DASHBOARD_CLIENT_ID, DASHBOARD_CLIENT_SECRET, DASHBOARD_REDIRECT_URI and DASHBOARD_SESSION_SECRET." });
@@ -426,6 +471,7 @@ function setupDashboard(app, { bots, db }) {
       serverRules: ["server_rules", "words"], rulesImage: ["rulesImage", "url"],
       auctionRules: ["mzad_rules", "words"]
     },
+    showcase: { publicShowcase: ["dashboard_public_showcase", "boolean"] },
     auto: {
       forbiddenWords: ["forbidden_words", "words"], forbiddenMode: ["forbidden_words_mode", "mode"],
       forbiddenRoom: ["forbidden_words_room", "channel"], warningStaffRole: ["warning_staff_role", "role"],
