@@ -1180,10 +1180,10 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                     await existing.login(token);
                     if (existingId) existing._dashboardBotId = existingId;
                     if (typeof existing._refreshPremiumEntitlement === "function") await existing._refreshPremiumEntitlement();
-                    if (existing._premiumEntitled && typeof existing._dashboardRefreshExchangeCron === 'function') {
+                    if (typeof existing._dashboardRefreshExchangeCron === 'function') {
                         for (const guild of existing.guilds.cache.values()) await existing._dashboardRefreshExchangeCron(guild.id).catch(() => {});
                     }
-                    if (existing._premiumEntitled && typeof existing._dashboardRestoreMzad2Timers === 'function') await existing._dashboardRestoreMzad2Timers().catch(() => {});
+                    if (typeof existing._dashboardRestoreMzad2Timers === 'function') await existing._dashboardRestoreMzad2Timers().catch(() => {});
                     return existing;
                 }
                 const botClient = createBotClient(token, bots.length);
