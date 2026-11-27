@@ -2461,6 +2461,21 @@ function createBotClient(token, index) {
         },
     ];
 
+    const premiumRecordsAtStartup = await db.all();
+    const isPremiumBot = (premiumRecordsAtStartup || []).some(entry =>
+      String(entry.id || "").startsWith("premium_user_") &&
+      entry.value?.botId === client.user.id &&
+      entry.value.active &&
+      Number(entry.value.endDate) > Date.now()
+    );
+    const premiumOnlyCommandNames = new Set([
+      "exchange-setup", "add-mzad2-type", "set-mzad2-cat",
+      "remove-mzad2-type", "mzad2-panel", "نقاطي", "توب-نقاط"
+    ]);
+    const commandsForBot = isPremiumBot
+      ? globalCommands
+      : globalCommands.filter(command => !premiumOnlyCommandNames.has(command.name));
+
     try {
         // ===== بوت الميكر: يسجل أوامر الميكر + البريميوم =====
         if (client.user.id === maker.MAKER_BOT_ID) {
@@ -2487,7 +2502,7 @@ function createBotClient(token, index) {
             if (globalCommands && globalCommands.length > 0) {
                 await rest.put(
                     Routes.applicationCommands(client.user.id), 
-                    { body: globalCommands }
+                    { body: commandsForBot }
                 );
                 console.log(`✅ Shop commands registered for ${client.user.tag}`);
             } else {
