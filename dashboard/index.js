@@ -472,6 +472,7 @@ function setupDashboard(app, { bots, db }) {
       auctionRules: ["mzad_rules", "words"]
     },
     showcase: { publicShowcase: ["dashboard_public_showcase", "boolean"] },
+    ratings: { ratingChannel: ["rating_ch", "channel"] },
     auto: {
       forbiddenWords: ["forbidden_words", "words"], forbiddenMode: ["forbidden_words_mode", "mode"],
       forbiddenRoom: ["forbidden_words_room", "channel"], warningStaffRole: ["warning_staff_role", "role"],
@@ -568,6 +569,35 @@ function setupDashboard(app, { bots, db }) {
       console.warn("[Dashboard audit]", error.message);
     }
   };
+
+  app.get("/dashboard/api/ratings", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const channelId = await db.get("rating_ch_" + access.guildId);
+      if (!channelId) return json(res, 200, { channelId: null, count: 0, average: null, ratings: [] });
+      const channel = await access.guild.channels.fetch(channelId).catch(() => null);
+      if (!channel || !channel.isTextBased() || !channel.messages) {
+        return json(res, 200, { channelId, count: 0, average: null, ratings: [], warning: "روم التقييمات غير متاح للبوت." });
+      }
+      const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+      const ratings = [];
+      for (const message of (messages?.values?.() || [])) {
+        const description = (message.embeds || []).map(embed => embed.description || "").join("\\n");
+        const match = description.match(/التقييم:\\s*(⭐+)\\s*\\((\\d)\\/5\\)/);
+        if (!match) continue;
+        const score = Number(match[2]);
+        if (score < 1 || score > 5) continue;
+        ratings.push({ score, stars: match[1], at: message.createdTimestamp, author: message.embeds[0]?.author?.name || "مقيّم" });
+      }
+      const count = ratings.length;
+      const average = count ? Number((ratings.reduce((sum, item) => sum + item.score, 0) / count).toFixed(2)) : null;
+      json(res, 200, { channelId, count, average, ratings: ratings.slice(0, 30) });
+    } catch (error) {
+      console.error("[Dashboard ratings]", error.message);
+      json(res, 500, { error: "تعذر تحميل تقييمات السيرفر." });
+    }
+  });
 
   app.get("/dashboard/api/commands", requireUser, async (req, res) => {
     try {
