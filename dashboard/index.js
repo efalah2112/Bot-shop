@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const expressSession = require("express-session");
 const Database = require("better-sqlite3");
 const maker = require("../handlers/modules/maker");
+const tokenVault = require("../handlers/modules/tokenVault");
 
 const DISCORD_API = "https://discord.com/api/v10";
 const MANAGE_GUILD = 0x20n;
@@ -261,6 +262,42 @@ function setupDashboard(app, { bots, db }) {
       ticket.status = status; ticket.updatedAt = Date.now(); ticket.closedBy = status === "closed" ? req.session.user.id : null;
       await db.set(key, ticket); json(res, 200, { success: true, status });
     } catch (error) { console.error("[Support ticket status]", error); json(res, 500, { error: "تعذر تحديث حالة التذكرة." }); }
+  });
+  app.post("/dashboard/api/maker/tokens", requireUser, requireMaker, async (req, res) => {
+    let token = "";
+    try {
+      token = String(req.body?.token || "").trim();
+      if (!token || token.length > 300) return json(res, 400, { error: "أدخل توكن بوت صالحاً." });
+      if (!tokenVault.isConfigured()) return json(res, 503, { error: "مفتاح تشفير التوكنات غير مضبوط في الاستضافة." });
+      const identityResponse = await fetch("https://discord.com/api/v10/users/@me", { headers: { Authorization: "Bot " + token } });
+      if (!identityResponse.ok) return json(res, 400, { error: "التوكن غير صالح أو لا يمكن التحقق منه." });
+      const identity = await identityResponse.json();
+      if (!snowflake(identity.id) || identity.id === maker.MAKER_BOT_ID) return json(res, 400, { error: "لا يمكن إضافة هذا البوت." });
+      const makerClient = getBot(maker.MAKER_BOT_ID);
+      if (tokenVault.hasToken(token) || makerClient?._hasRegisteredBotToken?.(token)) return json(res, 409, { error: "هذا التوكن مسجل مسبقاً." });
+      if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
+      tokenVault.addToken(token);
+      try { await makerClient._registerPremiumBot(token); } catch (error) { tokenVault.removeToken(token); throw error; }
+      json(res, 201, { added: true, bot: { id: identity.id, username: identity.username } });
+    } catch (error) { console.error("[Maker add bot token]", error.message); json(res, 500, { error: "تعذر إضافة البوت وتشغيله." }); }
+    finally { token = ""; }
+  });
+
+  app.delete("/dashboard/api/maker/bots/:botId", requireUser, requireMaker, async (req, res) => {
+    try {
+      const botId = String(req.params.botId || "");
+      if (!snowflake(botId) || botId === maker.MAKER_BOT_ID) return json(res, 400, { error: "لا يمكن حذف هذا البوت." });
+      const client = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
+      if (!client?._botToken) return json(res, 404, { error: "لم يتم العثور على توكن محفوظ لهذا البوت." });
+      const rows = await db.all();
+      const activePremium = (rows || []).some(row => String(row.id || "").startsWith("premium_user_") && row.value?.botId === botId && row.value.active && Number(row.value.endDate) > Date.now());
+      if (activePremium) return json(res, 409, { error: "لا يمكن حذف بوت لديه اشتراك Premium نشط." });
+      const removed = tokenVault.removeToken(client._botToken);
+      if (!removed) return json(res, 409, { error: "هذا التوكن مُدار من متغيرات الاستضافة ولا يمكن حذفه من ملف الإعدادات." });
+      if (client.isReady()) await client.destroy();
+      const index = bots.indexOf(client); if (index >= 0) bots.splice(index, 1);
+      json(res, 200, { deleted: true });
+    } catch (error) { console.error("[Maker remove bot]", error); json(res, 500, { error: "تعذر حذف البوت." }); }
   });
   app.get("/dashboard/api/maker/overview", requireUser, requireMaker, async (_req, res) => {
     try {
