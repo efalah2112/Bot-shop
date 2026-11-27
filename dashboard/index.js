@@ -755,26 +755,10 @@ function setupDashboard(app, { bots, db }) {
       if (description) embed.setDescription(description);
       if (footer) embed.setFooter({ text: footer });
       if (imageUrl) embed.setImage(imageUrl);
-      const mentionType = access.mode === "premium" ? "none" : String(req.body?.mentionType || "none");
-      const mentionRoleId = String(req.body?.mentionRoleId || "");
-      let mentionContent = "";
-      let allowedMentions = { parse: [], users: [], roles: [], repliedUser: false };
-      if (mentionType === "everyone") {
-        mentionContent = "@everyone";
-        allowedMentions.parse = ["everyone"];
-      } else if (mentionType === "here") {
-        mentionContent = "@here";
-        allowedMentions.parse = ["everyone"];
-      } else if (mentionType === "role") {
-        if (!snowflake(mentionRoleId) || !access.guild.roles.cache.has(mentionRoleId) || access.guild.roles.cache.get(mentionRoleId).managed) {
-          return json(res, 400, { error: "اختر رتبة منشن صالحة من السيرفر." });
-        }
-        mentionContent = "<@&" + mentionRoleId + ">";
-        allowedMentions.roles = [mentionRoleId];
-      } else if (mentionType !== "none") {
-        return json(res, 400, { error: "نوع المنشن غير صالح." });
-      }
-      const message = await channel.send({ content: mentionContent || undefined, embeds: [embed], allowedMentions });
+      const message = await channel.send({
+        embeds: [embed],
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false }
+      });
       await audit(access.guildId, req.session.user, "embeds", ["إرسال إمبد " + (title || "بدون عنوان") + " في " + channelId]);
       json(res, 200, { sent: true, url: message.url, template });
     } catch (error) {
