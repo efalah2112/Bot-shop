@@ -207,6 +207,67 @@ function setupDashboard(app, { bots, db }) {
     }
   };
 
+  const requireMaker = (req, res, next) => {
+    if (!req.session.user || !isDeveloper(req.session.user.id)) return json(res, 403, { error: "هذا القسم متاح للمبرمج فقط." });
+    next();
+  };
+
+  app.get("/dashboard/api/maker/overview", requireUser, requireMaker, async (_req, res) => {
+    try {
+      const rows = await db.all();
+      const premiumRows = (rows || []).filter(row => String(row.id || "").startsWith("premium_user_") && row.value && typeof row.value === "object");
+      const premiumRecords = premiumRows.map(row => row.value);
+      const premiumBotIds = new Set(premiumRecords.map(record => String(record.botId || "")));
+      const botList = bots.map(client => {
+        const botId = client._dashboardBotId || client.user?.id || null;
+        if (botId) client._dashboardBotId = botId;
+        const subscription = premiumRecords.find(record => record.botId === botId);
+        return { id: botId, username: client.user?.username || (botId ? "بوت غير متصل" : "بوت لم يسجل الدخول"), avatar: client.user?.displayAvatarURL?.({ size: 96 }) || null, ready: Boolean(client.isReady()), guildCount: client.guilds?.cache?.size || 0, ping: Number.isFinite(client.ws?.ping) ? client.ws.ping : null, uptime: client.uptime || null, kind: botId === maker.MAKER_BOT_ID ? "maker" : premiumBotIds.has(botId) ? "premium" : "standard", ownerId: subscription?.userId || client._dashboardOwnerId || null, canControl: Boolean(botId && botId !== maker.MAKER_BOT_ID && client._botToken) };
+      });
+      const subscriptions = premiumRecords.map(record => ({ userId: String(record.userId || ""), botId: String(record.botId || ""), guildId: String(record.guildId || ""), plan: String(record.planLabel || record.plan || "Premium"), active: Boolean(record.active), startDate: Number(record.startDate || 0), endDate: Number(record.endDate || 0), status: record.active && Number(record.endDate) > Date.now() ? "active" : Number(record.endDate) <= Date.now() ? "expired" : "inactive", renewalCount: Number(record.renewalCount || 0), price: Number(record.price || 0) }));
+      const settings = await db.get("premium_settings") || null;
+      const pendingCount = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_")).length;
+      json(res, 200, { stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY) });
+    } catch (error) { console.error("[Maker dashboard overview]", error); json(res, 500, { error: "تعذر تحميل بيانات الميكر." }); }
+  });
+
+  app.post("/dashboard/api/maker/bots/:botId/action", requireUser, requireMaker, async (req, res) => {
+    try {
+      const botId = String(req.params.botId || ""), action = String(req.body?.action || "");
+      if (!snowflake(botId) || !["start", "stop", "restart"].includes(action)) return json(res, 400, { error: "إجراء البوت أو معرّفه غير صالح." });
+      if (botId === maker.MAKER_BOT_ID) return json(res, 403, { error: "لا يمكن إيقاف بوت الميكر من لوحته." });
+      const client = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
+      if (!client) return json(res, 404, { error: "لم يتم العثور على عميل هذا البوت في قائمة التشغيل الحالية." });
+      if (!client._botToken) return json(res, 409, { error: "لا يتوفر توكن تشغيل محفوظ لهذا البوت؛ لم يتم تنفيذ أي تغيير." });
+      if (action === "stop") { if (!client.isReady()) return json(res, 409, { error: "البوت متوقف بالفعل." }); client._dashboardBotId = botId; await client.destroy(); return json(res, 200, { success: true, status: "stopped" }); }
+      if (action === "start" && client.isReady()) return json(res, 409, { error: "البوت يعمل بالفعل." });
+      if (action === "restart" && client.isReady()) { client._dashboardBotId = botId; await client.destroy(); }
+      await client.login(client._botToken); client._dashboardBotId = botId;
+      return json(res, 200, { success: true, status: action === "start" ? "started" : "restarted" });
+    } catch (error) { console.error("[Maker bot lifecycle]", error); json(res, 500, { error: "تعذر تنفيذ إجراء البوت. راجع سجل الاستضافة." }); }
+  });
+
+  app.post("/dashboard/api/maker/premium/:userId/extend", requireUser, requireMaker, async (req, res) => {
+    try {
+      const userId = String(req.params.userId || ""), days = Number(req.body?.days || 30);
+      if (!snowflake(userId) || !Number.isInteger(days) || days < 1 || days > 3650) return json(res, 400, { error: "المستخدم أو عدد أيام التمديد غير صالح." });
+      const key = "premium_user_" + userId, record = await db.get(key);
+      if (!record) return json(res, 404, { error: "لم يتم العثور على اشتراك لهذا المستخدم." });
+      record.endDate = Math.max(Date.now(), Number(record.endDate || 0)) + days * 86400000; record.active = true; record.notified3d = false; record.notified24h = false;
+      await db.set(key, record); json(res, 200, { success: true, endDate: record.endDate, active: true });
+    } catch (error) { console.error("[Maker premium extend]", error); json(res, 500, { error: "تعذر تمديد الاشتراك." }); }
+  });
+
+  app.post("/dashboard/api/maker/premium/:userId/status", requireUser, requireMaker, async (req, res) => {
+    try {
+      const userId = String(req.params.userId || ""), active = req.body?.active;
+      if (!snowflake(userId) || typeof active !== "boolean") return json(res, 400, { error: "بيانات حالة الاشتراك غير صالحة." });
+      const key = "premium_user_" + userId, record = await db.get(key);
+      if (!record) return json(res, 404, { error: "لم يتم العثور على الاشتراك." });
+      if (active && Number(record.endDate || 0) <= Date.now()) return json(res, 409, { error: "انتهت مدة الاشتراك؛ مدده أولاً قبل إعادة تفعيله." });
+      record.active = active; await db.set(key, record); json(res, 200, { success: true, active });
+    } catch (error) { console.error("[Maker premium status]", error); json(res, 500, { error: "تعذر تحديث حالة الاشتراك." }); }
+  });
   app.get("/dashboard", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
   app.get("/dashboard/login", (req, res) => {
     if (!requireOAuthConfig(res)) return;
