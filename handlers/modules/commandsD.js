@@ -2784,6 +2784,7 @@ module.exports = function registerCommandsD(
             //============ نقاطي ============
             case "نقاطي":
                 {
+                    if (!client._premiumEntitled) return i.reply({ content: "نظام النقاط متاح لبوتات Premium فقط.", ephemeral: true });
                     const myPts =
                         (await db.get(`ticket_pts_${i.user.id}_${guildId}`)) || 0;
                     const ptsContainer = buildContainer({
@@ -2899,6 +2900,7 @@ module.exports = function registerCommandsD(
             //============ توب-نقاط ============
             case "توب-نقاط":
                 {
+                    if (!client._premiumEntitled) return i.reply({ content: "نظام النقاط متاح لبوتات Premium فقط.", ephemeral: true });
                     await i.deferReply();
                     const allData = await db.all();
                     const suffix = `_${guildId}`;
