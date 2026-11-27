@@ -79,6 +79,13 @@
       <button id="back-login" class="text-button">العودة</button>
     </section>
 
+    <section id="maker-workspace" class="maker-workspace hidden">
+      <div class="maker-top"><div><span class="eyebrow"><i></i> DEVELOPER CONTROL CENTER</span><h1>لوحة الميكر</h1><p>إدارة البوتات والاشتراكات ومراقبة حالة النظام.</p></div>
+        <div class="maker-top-actions"><button id="maker-refresh" class="ghost-button">تحديث البيانات</button><button id="maker-back" class="ghost-button">العودة لاختيار الباقات</button><button id="maker-logout" class="ghost-button">تسجيل الخروج</button></div></div>
+      <div class="maker-layout"><aside class="maker-nav">
+        <button class="maker-nav-link active" data-maker-page="overview">نظرة عامة</button><button class="maker-nav-link" data-maker-page="bots">إدارة البوتات</button><button class="maker-nav-link" data-maker-page="premium">اشتراكات Premium</button><button class="maker-nav-link" data-maker-page="settings">إعدادات النظام</button><button class="maker-nav-link" id="maker-server-tools">إدارة السيرفرات</button>
+      </aside><main class="maker-main"><div class="maker-page-heading"><h2 id="maker-page-title">نظرة عامة</h2><p id="maker-page-subtitle">إحصائيات مباشرة من جلسات البوت وقاعدة البيانات.</p></div><div id="maker-page-content"></div></main></div>
+    </section>
     <section id="server-picker" class="picker hidden">
       <div class="picker-heading"><div><span class="eyebrow"><i></i> اختيار السيرفر</span><h1 id="picker-title">اختر البوت والسيرفر</h1><p id="picker-description">السيرفرات التي يمكنك إدارتها ستظهر هنا.</p></div><button id="back-plans" class="ghost-button">← رجوع</button></div>
       <div id="bot-select-wrap" class="bot-select-wrap hidden"><label for="bot-select">البوت العادي</label><select id="bot-select"></select></div>
