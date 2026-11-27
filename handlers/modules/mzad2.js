@@ -901,6 +901,7 @@ module.exports = function registerMzad2(client, { db, config }) {
             !i.guild
         )
             return;
+        if (!(await requirePremiumFeature(i))) return;
         if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return i.reply({
                 content: "❌ يجب أن تكون لديك صلاحية **Administrator**!",
