@@ -1175,6 +1175,16 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                     if (existing.isReady()) await existing.destroy();
                     await existing.login(token);
                     if (existingId) existing._dashboardBotId = existingId;
+                    const rows = await db.all();
+                    existing._premiumEntitled = (rows || []).some(entry =>
+                        String(entry.id || '').startsWith('premium_user_') &&
+                        entry.value?.botId === existingId &&
+                        entry.value.active &&
+                        Number(entry.value.endDate) > Date.now()
+                    );
+                    if (existing._premiumEntitled && typeof existing._dashboardRefreshExchangeCron === 'function') {
+                        for (const guild of existing.guilds.cache.values()) await existing._dashboardRefreshExchangeCron(guild.id).catch(() => {});
+                    }
                     return existing;
                 }
                 const botClient = createBotClient(token, bots.length);
