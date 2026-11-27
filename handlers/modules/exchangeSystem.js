@@ -184,6 +184,11 @@ module.exports = function registerExchangeSystem(client, { db, config }) {
 
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.guild) return;
+        const isExchangeAction = interaction.commandName === "exchange-setup" || String(interaction.customId || "").startsWith("xch_");
+        if (isExchangeAction && !client._premiumEntitled) {
+            if (!interaction.replied && !interaction.deferred && interaction.isRepliable?.()) await interaction.reply({ content: "هذه الميزة متاحة لبوتات Premium فقط.", ephemeral: true });
+            return;
+        }
         try {
             const gid = interaction.guild.id;
             const guild = interaction.guild;
