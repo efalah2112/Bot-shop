@@ -19,7 +19,6 @@ const {
 const emojis = require("./emojis");
 const D = require("./descriptions");
 
-const mzad2Timers = new Map();
 
 async function getColor(guildId, db, config) {
     const stored = guildId ? await db.get(`embed_color_${guildId}`) : null;
@@ -101,7 +100,7 @@ function startMzad2Interval(td, roomId, db) {
             });
         } catch {
             clearInterval(td.interval);
-            mzad2Timers.delete(roomId);
+            td.guild.client._mzad2Timers?.delete(roomId);
             return;
         }
 
@@ -124,7 +123,7 @@ function startMzad2Interval(td, roomId, db) {
 
         if (td.remainingTime <= 0) {
             clearInterval(td.interval);
-            mzad2Timers.delete(roomId);
+            td.guild.client._mzad2Timers?.delete(roomId);
             db.delete(`active_mzad2_${roomId}`).catch(() => {});
             
             try { await td.controlMsg.delete(); } catch {}
@@ -257,7 +256,8 @@ async function startMzad2InRoom(guild, type, draft, db, config) {
         fiveMinNoticeSent: false,
         interval: null,
     };
-    mzad2Timers.set(roomChannel.id, td);
+    const timers = guild.client._mzad2Timers || (guild.client._mzad2Timers = new Map());
+    timers.set(roomChannel.id, td);
     startMzad2Interval(td, roomChannel.id, db);
     return roomChannel;
 }
@@ -571,6 +571,17 @@ async function startPaymentFlow(interaction, type, db, config) {
 
 // تصدير دالة المزاد وتضمين أحداث الـ client بالداخل لحل خطأ السكوب
 module.exports = function registerMzad2(client, { db, config }) {
+    client._mzad2Timers = client._mzad2Timers || new Map();
+    client._dashboardStopPrivateAuctions = async () => {
+        for (const [roomId, td] of client._mzad2Timers.entries()) {
+            try {
+                const snap = await db.get(`active_mzad2_${roomId}`);
+                if (snap) await db.set(`active_mzad2_${roomId}`, { ...snap, remainingTime:td.remainingTime, everyLeft:td.everyLeft, hereLeft:td.hereLeft });
+            } catch {}
+            if (td.interval) clearInterval(td.interval);
+        }
+        client._mzad2Timers.clear();
+    };
     const requirePremiumFeature = async (interaction) => {
         if (client._premiumEntitled) return true;
         if (interaction.isAutocomplete?.()) await interaction.respond([]).catch(() => {});
@@ -1504,7 +1515,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         if (!(await requireAuctionAdmin(interaction, db))) return;
 
         const roomId = interaction.customId.replace("mzad2_refresh_", "");
-        const td = mzad2Timers.get(roomId);
+        const td = client._mzad2Timers.get(roomId);
         if (!td)
             return interaction.reply({
                 content: "**❌ لا يـوجـد مـزاد نـشـط فـي هـذا الـروم.**",
@@ -1568,7 +1579,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         if (!(await requireAuctionAdmin(interaction, db))) return;
 
         const roomId = interaction.customId.replace("mzad2_cancel_", "");
-        const td = mzad2Timers.get(roomId);
+        const td = client._mzad2Timers.get(roomId);
         if (!td)
             return interaction.reply({
                 content: "**❌ لا يـوجـد مـزاد نـشـط.**",
@@ -1581,7 +1592,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         });
 
         clearInterval(td.interval);
-        mzad2Timers.delete(roomId);
+        td.guild.client._mzad2Timers?.delete(roomId);
         await db.delete(`active_mzad2_${roomId}`);
         try {
             await td.controlMsg.delete();
@@ -1603,6 +1614,14 @@ module.exports = function registerMzad2(client, { db, config }) {
         try {
             await new Promise((r) => setTimeout(r, 3000));
             const all = await db.all();
+            const activePremium = (all || []).some(entry =>
+                String(entry.id || "").startsWith("premium_user_") &&
+                entry.value?.botId === client.user?.id &&
+                entry.value.active &&
+                Number(entry.value.endDate) > Date.now()
+            );
+            if (!activePremium) return;
+            client._premiumEntitled = true;
             const keys = all.filter(
                 (e) => e.id && e.id.startsWith("active_mzad2_"),
             );
@@ -1685,7 +1704,7 @@ module.exports = function registerMzad2(client, { db, config }) {
                     fiveMinNoticeSent: rem <= 300,
                     interval: null,
                 };
-                mzad2Timers.set(roomId, td);
+                client._mzad2Timers.set(roomId, td);
                 startMzad2Interval(td, roomId, db);
                 console.log(
                     `[Mzad2] Restored timer for room ${roomId} (${rem}s remaining)`,
@@ -1696,16 +1715,17 @@ module.exports = function registerMzad2(client, { db, config }) {
         }
     }
 
+    client._dashboardRestoreMzad2Timers = restoreMzad2Timers;
     if (client.isReady()) restoreMzad2Timers();
     else client.once("ready", () => restoreMzad2Timers());
 
     //========= cleanup on manual channel delete =========
     client.on("channelDelete", async (channel) => {
         try {
-            const td = mzad2Timers.get(channel.id);
+            const td = client._mzad2Timers.get(channel.id);
             if (td) {
                 clearInterval(td.interval);
-                mzad2Timers.delete(channel.id);
+                client._mzad2Timers.delete(channel.id);
             }
             const key = `active_mzad2_${channel.id}`;
             const exists = await db.get(key);
