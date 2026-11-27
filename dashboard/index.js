@@ -229,14 +229,25 @@ function setupDashboard(app, { bots, db }) {
   app.post("/dashboard/api/maker/settings/premium", requireUser, requireMaker, async (req, res) => {
     try {
       const settings = await db.get("premium_settings");
-      if (!settings) return json(res, 404, { error: "إعدادات Premium غير موجودة؛ نفّذ إعداد الميكر أولاً." });
+      if (!settings) return json(res, 404, { error: "إعدادات Premium غير موجودة؛ نفّذ /setup-premium في بوت الميكر أولاً." });
       const priceMonthly = Number(req.body?.priceMonthly), price3Months = Number(req.body?.price3Months);
       if (!Number.isInteger(priceMonthly) || priceMonthly < 1 || priceMonthly > 1000000000 || !Number.isInteger(price3Months) || price3Months < 1 || price3Months > 1000000000) return json(res, 400, { error: "أسعار الاشتراك يجب أن تكون أرقاماً صحيحة أكبر من صفر." });
+      const fields = ["bankId", "premiumRoleId", "logChannelId", "notificationChannelId", "ticketCategoryId"];
+      const next = { ...settings };
+      for (const field of fields) {
+        const value = String(req.body?.[field] ?? settings[field] ?? "");
+        if (!snowflake(value)) return json(res, 400, { error: "تحقق من الآيديات المطلوبة في إعدادات Premium." });
+        next[field] = value;
+      }
       const makerClient = getBot(maker.MAKER_BOT_ID), guild = makerClient?.guilds?.cache?.get(settings.guildId);
       if (!guild) return json(res, 503, { error: "بوت الميكر غير موجود في سيرفر إعدادات Premium." });
-      settings.priceMonthly = priceMonthly; settings.price3Months = price3Months;
-      await db.set("premium_settings", settings);
-      await audit(settings.guildId, req.session.user, "maker-premium-settings", ["تحديث أسعار اشتراكات Premium"]);
+      if (!guild.roles.cache.has(next.premiumRoleId)) return json(res, 400, { error: "رتبة Premium المحددة غير موجودة في سيرفر الإعدادات." });
+      const logChannel = guild.channels.cache.get(next.logChannelId), notificationChannel = guild.channels.cache.get(next.notificationChannelId), ticketCategory = guild.channels.cache.get(next.ticketCategoryId);
+      if (!logChannel?.isTextBased?.() || !notificationChannel?.isTextBased?.()) return json(res, 400, { error: "روم السجلات وروم التنبيهات يجب أن يكونا قناتي نصية صالحتين." });
+      if (!ticketCategory || ticketCategory.type !== 4) return json(res, 400, { error: "كاتيغوري التكتات المحدد غير صالح." });
+      next.priceMonthly = priceMonthly; next.price3Months = price3Months;
+      await db.set("premium_settings", next);
+      await audit(settings.guildId, req.session.user, "maker-premium-settings", ["تحديث إعدادات وأسعار Premium"]);
       json(res, 200, { saved:true, priceMonthly, price3Months });
     } catch (error) { console.error("[Maker premium settings]", error); json(res, 500, { error: "تعذر حفظ إعدادات Premium." }); }
   });
