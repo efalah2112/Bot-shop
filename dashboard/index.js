@@ -703,6 +703,69 @@ function setupDashboard(app, { bots, db }) {
     }
   };
 
+  app.get("/dashboard/api/premium/exchange", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.query); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "هذه الميزة متاحة لبوتات Premium فقط." });
+      const cfg = await db.get("xch_cfg_" + access.guildId) || { enabled:false, allowedRoles:[], rooms:[], schedule:"*/15 * * * *", userLimit:5, price:0, transferRoom:null, bankId:null, logRoom:null, totalPublished:0 };
+      json(res, 200, { config: cfg });
+    } catch (error) { console.error("[Premium exchange get]", error); json(res, 500, { error: "تعذر تحميل إعدادات التبادل." }); }
+  });
+
+  app.post("/dashboard/api/premium/exchange", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "هذه الميزة متاحة لبوتات Premium فقط." });
+      const body = req.body || {}, current = await db.get("xch_cfg_" + access.guildId) || {};
+      const schedules = ["*/5 * * * *","*/10 * * * *","*/15 * * * *","*/30 * * * *","0 * * * *","0 */2 * * *","0 */6 * * *","0 */12 * * *"];
+      const allowedRoles = Array.isArray(body.allowedRoles) ? [...new Set(body.allowedRoles)] : [];
+      const rooms = Array.isArray(body.rooms) ? [...new Set(body.rooms)] : [];
+      const userLimit = Number(body.userLimit), price = Number(body.price);
+      if (allowedRoles.length > 25 || allowedRoles.some(id => !snowflake(id) || !access.guild.roles.cache.has(id))) return json(res, 400, { error: "قائمة رتب التبادل غير صالحة." });
+      if (rooms.length > 25 || rooms.some(id => !snowflake(id) || ![0,5].includes(access.guild.channels.cache.get(id)?.type))) return json(res, 400, { error: "قائمة قنوات التبادل غير صالحة." });
+      for (const id of [body.transferRoom, body.logRoom]) if (id && (!snowflake(id) || ![0,5].includes(access.guild.channels.cache.get(id)?.type))) return json(res, 400, { error: "روم التحويل أو اللوق غير صالح." });
+      if (body.bankId && !snowflake(String(body.bankId))) return json(res, 400, { error: "آيدي البنك غير صالح." });
+      if (!schedules.includes(String(body.schedule)) || !Number.isInteger(userLimit) || userLimit < 1 || userLimit > 100 || !Number.isInteger(price) || price < 0 || price > 1000000000) return json(res, 400, { error: "الوقت أو الحد أو السعر غير صالح." });
+      const cfg = { ...current, enabled:Boolean(body.enabled), allowedRoles, rooms, schedule:String(body.schedule), userLimit, price, transferRoom:body.transferRoom || null, bankId:body.bankId || null, logRoom:body.logRoom || null };
+      await db.set("xch_cfg_" + access.guildId, cfg);
+      if (typeof access.bot._dashboardRefreshExchangeCron === "function") await access.bot._dashboardRefreshExchangeCron(access.guildId);
+      await audit(access.guildId, req.session.user, "premium-exchange", ["تحديث إعدادات نظام التبادل"]); json(res, 200, { saved:true, config:cfg });
+    } catch (error) { console.error("[Premium exchange save]", error); json(res, 500, { error: "تعذر حفظ إعدادات التبادل." }); }
+  });
+
+  app.get("/dashboard/api/premium/private-auction", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.query); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "المزاد الخاص متاح لبوتات Premium فقط." });
+      json(res, 200, { types: await db.get("mzad2_types_" + access.guildId) || [], ticketCategory: await db.get("mzad2_ticket_cat_" + access.guildId) || "", roomCategory: await db.get("mzad2_pub_cat_" + access.guildId) || "" });
+    } catch (error) { console.error("[Premium private auction get]", error); json(res, 500, { error: "تعذر تحميل أنواع المزاد الخاص." }); }
+  });
+
+  app.post("/dashboard/api/premium/private-auction", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "المزاد الخاص متاح لبوتات Premium فقط." });
+      const body = req.body || {}, types = Array.isArray(body.types) ? body.types : [];
+      if (types.length > 25) return json(res, 400, { error: "الحد الأقصى 25 نوع مزاد." });
+      const normalized = types.map(t => ({ name:String(t.name || "").trim().slice(0,50), hours:Number(t.hours), every:Number(t.every || 0), here:Number(t.here || 0), price:Number(t.price), notice:String(t.notice || "").slice(0,1000) }));
+      if (normalized.some(t => !t.name || !Number.isInteger(t.hours) || t.hours < 1 || t.hours > 168 || !Number.isInteger(t.every) || t.every < 0 || t.every > 1000 || !Number.isInteger(t.here) || t.here < 0 || t.here > 1000 || !Number.isInteger(t.price) || t.price < 0 || t.price > 1000000000) || new Set(normalized.map(t => t.name.toLowerCase())).size !== normalized.length) return json(res, 400, { error: "بيانات أنواع المزاد غير صالحة أو الأسماء مكررة." });
+      for (const id of [body.ticketCategory, body.roomCategory]) if (id && (!snowflake(id) || access.guild.channels.cache.get(id)?.type !== 4)) return json(res, 400, { error: "اختر كاتيغوري صحيحاً." });
+      await db.set("mzad2_types_" + access.guildId, normalized);
+      if (body.ticketCategory) await db.set("mzad2_ticket_cat_" + access.guildId, body.ticketCategory); else await db.delete("mzad2_ticket_cat_" + access.guildId);
+      if (body.roomCategory) await db.set("mzad2_pub_cat_" + access.guildId, body.roomCategory); else await db.delete("mzad2_pub_cat_" + access.guildId);
+      await audit(access.guildId, req.session.user, "premium-private-auction", ["تحديث أنواع وإعدادات المزاد الخاص"]); json(res, 200, { saved:true, types:normalized });
+    } catch (error) { console.error("[Premium private auction save]", error); json(res, 500, { error: "تعذر حفظ إعدادات المزاد الخاص." }); }
+  });
+
+  app.get("/dashboard/api/premium/promotions", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.query); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "نظام نقاط وترقيات الإدارة متاح لبوتات Premium فقط." });
+      const rows = await db.all(), suffix = "_" + access.guildId;
+      const points = (rows || []).filter(row => String(row.id || "").startsWith("ticket_pts_") && String(row.id).endsWith(suffix)).map(row => ({ userId:String(row.id).slice("ticket_pts_".length, -suffix.length), points:Number(row.value || 0) })).sort((a,b)=>b.points-a.points).slice(0,50);
+      json(res, 200, { points, levels: await db.get("ticket_promotion_levels_" + access.guildId) || [] });
+    } catch (error) { console.error("[Premium promotions get]", error); json(res, 500, { error: "تعذر تحميل نقاط الإدارة." }); }
+  });
+
+  app.post("/dashboard/api/premium/promotions", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "نظام نقاط وترقيات الإدارة متاح لبوتات Premium فقط." });
+      const levels = Array.isArray(req.body?.levels) ? req.body.levels : [];
+      if (levels.length > 20 || levels.some(level => !Number.isInteger(Number(level.points)) || Number(level.points) < 1 || Number(level.points) > 100000 || !snowflake(String(level.roleId || "")) || !access.guild.roles.cache.has(String(level.roleId)))) return json(res, 400, { error: "مستويات الترقية أو الرتب غير صالحة." });
+      const normalized = levels.map(level => ({ points:Number(level.points), roleId:String(level.roleId) })).sort((a,b)=>a.points-b.points);
+      if (new Set(normalized.map(level => level.points)).size !== normalized.length || new Set(normalized.map(level => level.roleId)).size !== normalized.length) return json(res, 400, { error: "لا تكرر عدد النقاط أو الرتبة في مستويات الترقية." });
+      await db.set("ticket_promotion_levels_" + access.guildId, normalized); await audit(access.guildId, req.session.user, "premium-promotions", ["تحديث مستويات ترقية الإدارة"]); json(res, 200, { saved:true, levels:normalized });
+    } catch (error) { console.error("[Premium promotions save]", error); json(res, 500, { error: "تعذر حفظ مستويات الترقية." }); }
+  });
   app.get("/dashboard/api/identity", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
