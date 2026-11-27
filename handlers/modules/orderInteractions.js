@@ -1769,9 +1769,8 @@ client.on("interactionCreate", async (interaction) => {
         const guildId = message.guild.id; // الحصول على معرف السيرفر
         const { member, content, channel } = message; // الحصول على العضو والمحتوى والقناة
         const admins = await db.get(`shopad_${guildId}`); // جلب بيانات الأدمن
-        const shortcut = await db.get(
-            `shortcut_warning_${guildId}` || "+تحذير",
-        );
+        const shortcut =
+            (await db.get(`shortcut_warning_${guildId}`)) || "+تحذير";
 
         if (content.startsWith(shortcut)) {
             const reason = content.slice(shortcut.length).trim(); // استخراج النص بعد الاختصار
