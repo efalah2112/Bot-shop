@@ -78,12 +78,19 @@
         <button class="plan-card" data-mode="support"><span class="plan-icon normal-icon">?</span><span class="plan-tag">SUPPORT CENTER</span><h3>مركز الدعم</h3><p>افتح تذكرة شكوى أو دعم Premium أو طلب شراء أو اقتراح، وتابع الردود والحالة.</p><span class="plan-action">فتح مركز الدعم <b>←</b></span></button>
         <button class="plan-card" data-mode="normal"><span class="plan-icon normal-icon">⌘</span><span class="plan-tag">STANDARD</span><h3>البوت العادي</h3><p>إدارة البوتات العادية في السيرفرات التي تملك صلاحية إدارتها.</p><span class="plan-action">اختيار البوت العادي <b>←</b></span></button>
         <button class="plan-card premium-card hidden" data-mode="premium"><span class="plan-icon premium-icon">✦</span><span class="plan-tag">PREMIUM EXPERIENCE</span><h3>البوت Premium</h3><p>إدارة بوت Premium والسيرفر المرتبط باشتراكك النشط.</p><span class="plan-action">اختيار Premium <b>←</b></span></button>
-        <button class="plan-card developer-card hidden" data-mode="developer"><span class="plan-icon premium-icon">⌘</span><span class="plan-tag">DEVELOPER ACCESS</span><h3>قسم المبرمج</h3><p>إدارة جميع البوتات والسيرفرات المتصلة دون اشتراط ملكية البوت أو صلاحيات السيرفر.</p><span class="plan-action">دخول قسم المبرمج <b>←</b></span></button>
-        <button class="plan-card developer-card hidden" data-mode="maker"><span class="plan-icon premium-icon">⚙</span><span class="plan-tag">MAKER CONSOLE</span><h3>لوحة الميكر</h3><p>إدارة البوتات واشتراكات Premium ومراقبة النظام من لوحة مستقلة.</p><span class="plan-action">فتح لوحة الميكر <b>←</b></span></button>
+        <button class="plan-card developer-card hidden" data-mode="developer"><span class="plan-icon premium-icon">⌘</span><span class="plan-tag">DEVELOPER ACCESS</span><h3>قسم المبرمج</h3><p>اختر بين إدارة سيرفرات البوتات أو إعدادات Premium والاشتراكات.</p><span class="plan-action">دخول قسم المبرمج <b>←</b></span></button>
       </div>
       <button id="back-login" class="text-button">العودة</button>
     </section>
 
+    <section id="developer-chooser" class="chooser hidden">
+      <div class="section-heading"><span class="eyebrow"><i></i> DEVELOPER AREA</span><h1>قسم <em>المبرمج</em></h1><p>اختر القسم الذي تريد إدارته.</p></div>
+      <div class="plan-grid">
+        <button class="plan-card" id="developer-servers"><span class="plan-icon normal-icon">⌘</span><span class="plan-tag">BOT SERVERS</span><h3>إدارة سيرفرات البوتات</h3><p>اختر البوت ثم السيرفر لفتح إعدادات البوت العادي.</p><span class="plan-action">إدارة السيرفرات ←</span></button>
+        <button class="plan-card premium-card" id="developer-premium"><span class="plan-icon premium-icon">✦</span><span class="plan-tag">PREMIUM CONTROL</span><h3>إعدادات Premium والميكر</h3><p>إدارة الاشتراكات والبوتات والتشغيل المجاني وإعدادات Premium.</p><span class="plan-action">إدارة Premium ←</span></button>
+      </div>
+      <button id="developer-back" class="text-button">العودة لاختيار الأقسام</button>
+    </section>
     <section id="support-workspace" class="maker-workspace hidden">
       <div class="maker-top"><div><span class="eyebrow"><i></i> SUPPORT CENTER</span><h1>مركز الدعم</h1><p>تواصل مع فريق الدعم وتابع تذاكرك.</p></div><div class="maker-top-actions"><button id="support-refresh" class="ghost-button">تحديث</button><button id="support-back" class="ghost-button">العودة</button></div></div>
       <div id="support-page-content"></div>
@@ -92,7 +99,7 @@
       <div class="maker-top"><div><span class="eyebrow"><i></i> DEVELOPER CONTROL CENTER</span><h1>لوحة الميكر</h1><p>إدارة البوتات والاشتراكات ومراقبة حالة النظام.</p></div>
         <div class="maker-top-actions"><button id="maker-refresh" class="ghost-button">تحديث البيانات</button><button id="maker-back" class="ghost-button">العودة لاختيار الباقات</button><button id="maker-logout" class="ghost-button">تسجيل الخروج</button></div></div>
       <div class="maker-layout"><aside class="maker-nav">
-        <button class="maker-nav-link active" data-maker-page="overview">نظرة عامة</button><button class="maker-nav-link" data-maker-page="bots">إدارة البوتات</button><button class="maker-nav-link" data-maker-page="premium">اشتراكات Premium</button><button class="maker-nav-link" data-maker-page="trials">تشغيل Premium مجاني</button><button class="maker-nav-link" data-maker-page="console">كونسول الهوست</button><button class="maker-nav-link" data-maker-page="support">مركز الدعم</button><button class="maker-nav-link" data-maker-page="logs">السجلات والأخطاء</button><button class="maker-nav-link" data-maker-page="users">المستخدمون والصلاحيات</button><button class="maker-nav-link" data-maker-page="settings">إعدادات النظام</button><button class="maker-nav-link" id="maker-server-tools">إدارة السيرفرات</button>
+        <button class="maker-nav-link active" data-maker-page="overview">نظرة عامة</button><button class="maker-nav-link" data-maker-page="bots">إدارة البوتات</button><button class="maker-nav-link" data-maker-page="premium">اشتراكات Premium</button><button class="maker-nav-link" data-maker-page="trials">تشغيل Premium مجاني</button><button class="maker-nav-link" data-maker-page="console">كونسول الهوست</button><button class="maker-nav-link" data-maker-page="support">مركز الدعم</button><button class="maker-nav-link" data-maker-page="logs">السجلات والأخطاء</button><button class="maker-nav-link" data-maker-page="users">المستخدمون والصلاحيات</button><button class="maker-nav-link" data-maker-page="settings">إعدادات النظام</button>
       </aside><main class="maker-main"><div class="maker-page-heading"><h2 id="maker-page-title">نظرة عامة</h2><p id="maker-page-subtitle">إحصائيات مباشرة من جلسات البوت وقاعدة البيانات.</p></div><div id="maker-page-content"></div></main></div>
     </section>
     <section id="server-picker" class="picker hidden">
