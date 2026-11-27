@@ -816,7 +816,12 @@ function setupDashboard(app, { bots, db }) {
       const memberships = await getUserGuilds(req); if (!memberships.some(item => item.id === access.guildId && item.owner)) return json(res, 403, { error: "إعدادات الترقيات متاحة لمالك السيرفر فقط." });
       await access.guild.roles.fetch().catch(() => {});
       const levels = Array.isArray(req.body?.levels) ? req.body.levels : [];
-      if (levels.length > 20 || levels.some(level => !Number.isInteger(Number(level.points)) || Number(level.points) < 1 || Number(level.points) > 100000 || !snowflake(String(level.roleId || "")) || !access.guild.roles.cache.has(String(level.roleId)))) return json(res, 400, { error: "مستويات الترقية أو الرتب غير صالحة." });
+      const botMember = await access.guild.members.fetchMe().catch(() => null);
+      if (!botMember || !botMember.permissions.has("ManageRoles")) return json(res, 403, { error: "يحتاج البوت إلى صلاحية Manage Roles لتطبيق الترقيات." });
+      if (levels.length > 20 || levels.some(level => {
+        const roleId = String(level.roleId || ""), role = access.guild.roles.cache.get(roleId);
+        return !Number.isInteger(Number(level.points)) || Number(level.points) < 1 || Number(level.points) > 100000 || !snowflake(roleId) || !role || role.managed || role.position >= botMember.roles.highest.position;
+      })) return json(res, 400, { error: "مستويات الترقية أو الرتب غير صالحة أو أعلى من رتبة البوت." });
       const normalized = levels.map(level => ({ points:Number(level.points), roleId:String(level.roleId) })).sort((a,b)=>a.points-b.points);
       if (new Set(normalized.map(level => level.points)).size !== normalized.length || new Set(normalized.map(level => level.roleId)).size !== normalized.length) return json(res, 400, { error: "لا تكرر عدد النقاط أو الرتبة في مستويات الترقية." });
       await db.set("ticket_promotion_levels_" + access.guildId, normalized); await audit(access.guildId, req.session.user, "premium-promotions", ["تحديث مستويات ترقية الإدارة"]); json(res, 200, { saved:true, levels:normalized });
