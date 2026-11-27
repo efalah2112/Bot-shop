@@ -367,7 +367,7 @@ function setupDashboard(app, { bots, db }) {
       const registeredClient = bots.find(item => item._botToken === token);
       const wasRunningBeforeTrial = Boolean(registeredClient?.isReady());
       const now = Date.now();
-      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, wasRunningBeforeTrial, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
+      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, wasRunningBeforeTrial, botTokenEncrypted: tokenVault.encryptToken(token), startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
       await db.set(trialKey, trial);
       try {
         const runtimeClient = await makerClient._registerPremiumBot(token);
@@ -391,7 +391,7 @@ function setupDashboard(app, { bots, db }) {
       if (!snowflake(botId)) return json(res, 400, { error: "آيدي البوت غير صالح." });
       const key = "maker_free_trial_" + botId, trial = await db.get(key);
       if (!trial) return json(res, 404, { error: "الفترة التجريبية غير موجودة." });
-      trial.active = false; trial.status = "revoked"; trial.endDate = Math.min(Number(trial.endDate || Date.now()), Date.now()); trial.revokedAt = Date.now(); trial.revokedBy = req.session.user.id;
+      trial.active = false; trial.status = "revoked"; trial.endDate = Math.min(Number(trial.endDate || Date.now()), Date.now()); trial.revokedAt = Date.now(); trial.revokedBy = req.session.user.id; delete trial.botTokenEncrypted;
       await db.set(key, trial);
       const target = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
       if (trial.wasRunningBeforeTrial && target?.isReady()) {
