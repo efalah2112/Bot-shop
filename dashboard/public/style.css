@@ -75,3 +75,5 @@
 .maker-actions{margin-top:12px}.maker-actions button{font-size:10px}
 @media(max-width:850px){.maker-layout{grid-template-columns:1fr}.maker-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.maker-top{align-items:flex-start;flex-direction:column}}
 @media(max-width:560px){.maker-workspace{padding:30px 18px 60px}.maker-top h1{font-size:26px}.maker-top-actions{width:100%}.maker-top-actions button{flex:1}.maker-nav{grid-template-columns:1fr 1fr}}
+
+.support-workspace .field-control{margin:6px 0}.support-workspace .dashboard-panel{margin-bottom:18px}
