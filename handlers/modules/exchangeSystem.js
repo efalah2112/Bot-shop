@@ -133,6 +133,11 @@ module.exports = function registerExchangeSystem(client, { db, config }) {
         if (j) { try { j.stop(); } catch {} cronJobs.delete(guildId); }
     }
 
+    client._dashboardRefreshExchangeCron = async (guildId) => {
+        const cfg = await getCfg(guildId);
+        if (cfg.enabled) await startCronFor(guildId); else stopCronFor(guildId);
+    };
+
     async function publishNext(guildId) {
         const cfg = await getCfg(guildId);
         if (!cfg.enabled || cfg.rooms.length === 0) return;
