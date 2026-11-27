@@ -583,7 +583,8 @@ module.exports = function registerMzad2(client, { db, config }) {
         client._mzad2Timers.clear();
     };
     const requirePremiumFeature = async (interaction) => {
-        if (client._premiumEntitled) return true;
+        const premiumAllowed = typeof client._refreshPremiumEntitlement === "function" ? await client._refreshPremiumEntitlement() : Boolean(client._premiumEntitled);
+        if (premiumAllowed) return true;
         if (interaction.isAutocomplete?.()) await interaction.respond([]).catch(() => {});
         else if (interaction.isRepliable?.() && !interaction.replied && !interaction.deferred) {
             await interaction.reply({ content: "المزاد الخاص متاح لبوتات Premium فقط.", flags: MessageFlags.Ephemeral }).catch(() => {});
