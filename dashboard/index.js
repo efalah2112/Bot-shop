@@ -583,8 +583,8 @@ function setupDashboard(app, { bots, db }) {
       const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
       const ratings = [];
       for (const message of (messages?.values?.() || [])) {
-        const description = (message.embeds || []).map(embed => embed.description || "").join("\\n");
-        const match = description.match(/التقييم:\\s*(⭐+)\\s*\\((\\d)\\/5\\)/);
+        const description = (message.embeds || []).map(embed => embed.description || "").join("\n");
+        const match = description.match(/التقييم:\s*(⭐+)\s*\((\d)\/5\)/);
         if (!match) continue;
         const score = Number(match[2]);
         if (score < 1 || score > 5) continue;
