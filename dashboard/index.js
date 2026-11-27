@@ -212,6 +212,56 @@ function setupDashboard(app, { bots, db }) {
     next();
   };
 
+  app.get("/dashboard/api/support", requireUser, async (req, res) => {
+    try {
+      const rows = await db.all();
+      const isMaker = isDeveloper(req.session.user.id);
+      const tickets = (rows || []).filter(row => String(row.id || "").startsWith("maker_support_ticket_") && row.value && (isMaker || row.value.userId === req.session.user.id)).map(row => row.value).sort((a,b) => Number(b.ticketNo)-Number(a.ticketNo));
+      json(res, 200, { tickets });
+    } catch (error) { console.error("[Support tickets]", error); json(res, 500, { error: "تعذر تحميل تذاكر الدعم." }); }
+  });
+
+  app.post("/dashboard/api/support", requireUser, async (req, res) => {
+    try {
+      const category = String(req.body?.category || ""), title = String(req.body?.title || "").trim().slice(0, 100), body = String(req.body?.body || "").trim().slice(0, 2000);
+      if (!["complaint","premium","purchase","suggestion"].includes(category) || title.length < 5 || body.length < 10) return json(res, 400, { error: "اختر نوع التذكرة واكتب عنواناً ووصفاً واضحين." });
+      const ticketNo = Number(await db.get("maker_support_counter") || 0) + 1;
+      await db.set("maker_support_counter", ticketNo);
+      const user = req.session.user;
+      const ticket = { ticketNo, userId: user.id, username: user.globalName || user.username, category, title, status: "open", createdAt: Date.now(), updatedAt: Date.now(), messages: [{ userId: user.id, username: user.globalName || user.username, body, at: Date.now(), staff: false }] };
+      await db.set("maker_support_ticket_" + ticketNo, ticket);
+      json(res, 201, { ticket });
+    } catch (error) { console.error("[Support ticket create]", error); json(res, 500, { error: "تعذر إنشاء تذكرة الدعم." }); }
+  });
+
+  app.post("/dashboard/api/support/:ticketNo/replies", requireUser, async (req, res) => {
+    try {
+      const ticketNo = Number(req.params.ticketNo), body = String(req.body?.body || "").trim().slice(0, 2000);
+      if (!Number.isSafeInteger(ticketNo) || ticketNo < 1 || body.length < 2) return json(res, 400, { error: "رقم التذكرة أو نص الرد غير صالح." });
+      const key = "maker_support_ticket_" + ticketNo, ticket = await db.get(key);
+      if (!ticket) return json(res, 404, { error: "التذكرة غير موجودة." });
+      const staff = isDeveloper(req.session.user.id);
+      if (!staff && ticket.userId !== req.session.user.id) return json(res, 403, { error: "لا تملك صلاحية الوصول إلى هذه التذكرة." });
+      if (ticket.status !== "open") return json(res, 409, { error: "التذكرة مغلقة؛ أعد فتحها قبل إضافة رد." });
+      const user = req.session.user;
+      ticket.messages = Array.isArray(ticket.messages) ? ticket.messages : [];
+      ticket.messages.push({ userId: user.id, username: user.globalName || user.username, body, at: Date.now(), staff });
+      ticket.updatedAt = Date.now();
+      await db.set(key, ticket);
+      json(res, 200, { ticket });
+    } catch (error) { console.error("[Support ticket reply]", error); json(res, 500, { error: "تعذر إرسال الرد." }); }
+  });
+
+  app.post("/dashboard/api/support/:ticketNo/status", requireUser, requireMaker, async (req, res) => {
+    try {
+      const ticketNo = Number(req.params.ticketNo), status = String(req.body?.status || "");
+      if (!Number.isSafeInteger(ticketNo) || ticketNo < 1 || !["open","closed"].includes(status)) return json(res, 400, { error: "حالة التذكرة غير صالحة." });
+      const key = "maker_support_ticket_" + ticketNo, ticket = await db.get(key);
+      if (!ticket) return json(res, 404, { error: "التذكرة غير موجودة." });
+      ticket.status = status; ticket.updatedAt = Date.now(); ticket.closedBy = status === "closed" ? req.session.user.id : null;
+      await db.set(key, ticket); json(res, 200, { success: true, status });
+    } catch (error) { console.error("[Support ticket status]", error); json(res, 500, { error: "تعذر تحديث حالة التذكرة." }); }
+  });
   app.get("/dashboard/api/maker/overview", requireUser, requireMaker, async (_req, res) => {
     try {
       const rows = await db.all();
