@@ -364,8 +364,6 @@ function setupDashboard(app, { bots, db }) {
       if (activeTrials.length >= 3) return json(res, 429, { error: "وصلت إلى الحد الأقصى: 3 تجارب مجانية نشطة في الوقت نفسه." });
       const makerClient = getBot(maker.MAKER_BOT_ID);
       if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
-      const alreadyRunning = Boolean(makerClient._hasRegisteredBotToken?.(token));
-      if (!alreadyRunning) return json(res, 409, { error: "أضف هذا البوت إلى عملية التشغيل المستقلة المسموح بها في استضافتك أولاً. هذه الصفحة لا تضيف بوتاً ثانياً إلى خادم Wispbyte." });
       const registeredClient = bots.find(item => item._botToken === token);
       const wasRunningBeforeTrial = Boolean(registeredClient?.isReady());
       const now = Date.now();
