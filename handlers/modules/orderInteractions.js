@@ -2785,7 +2785,7 @@ client.on("interactionCreate", async (interaction) => {
                     .addFields(
                         {
                             name: "اختصار المنشنات",
-                            value: `\`${savedMention || "+منشنات"}\``,
+                            value: `\`${savedMention || "منشن"}\``,
                             inline: true,
                         },
                         {
@@ -2844,7 +2844,7 @@ client.on("interactionCreate", async (interaction) => {
             } else {
                 // استرجاع الاختصارات المحفوظة
                 const savedMention =
-                    (await db.get(`shortcut_mention_${guildId}`)) || "+منشنات";
+                    (await db.get(`shortcut_mention_${guildId}`)) || "منشن";
                 const savedWarning = await db.get(
                     `shortcut_warning_${guildId}`,
                 );
