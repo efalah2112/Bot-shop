@@ -707,7 +707,8 @@ async function handlePremiumBuyModal(i, db, client) {
             headers: { Authorization: 'Bot ' + botToken }
         });
         if (!guildResponse.ok) return i.reply({ content: '❌ البوت غير موجود في السيرفر المحدد أو لا يمكنه الوصول إليه.', ephemeral: true });
-        if (tokenVault.hasToken(botToken)) return i.reply({ content: '❌ هذا التوكن مسجل مسبقاً في النظام.', ephemeral: true });
+        if (botId === MAKER_BOT_ID) return i.reply({ content: '❌ لا يمكن استخدام بوت الميكر كاشتراك Premium.', ephemeral: true });
+        if (tokenVault.hasToken(botToken) && !client._hasRegisteredBotToken?.(botToken)) return i.reply({ content: '❌ هذا التوكن مسجل مسبقاً في النظام.', ephemeral: true });
     } catch (error) {
         console.error('[Premium validation]', error.message);
         return i.reply({ content: '❌ تعذر التحقق من بيانات البوت حالياً. حاول لاحقاً.', ephemeral: true });
@@ -919,7 +920,7 @@ async function addPremiumUser(userId, data, db, client) {
 
     // Persist the token only in the encrypted vault; never in the subscription DB.
     const added = tokenVault.addToken(botToken);
-    if (!added) throw new Error('هذا التوكن مسجل مسبقاً في النظام.');
+    if (!added && !(client && client._hasRegisteredBotToken?.(botToken))) throw new Error('هذا التوكن مسجل مسبقاً في النظام.');
 
     const endDate = Date.now() + (days * 24 * 60 * 60 * 1000);
     const userData = {
@@ -1005,6 +1006,9 @@ async function handleExpiredSubscription(userId, db, client) {
 
     userData.active = false;
     await db.set(`premium_user_${userId}`, userData);
+    if (client && typeof client._controlPremiumBot === 'function') {
+        await client._controlPremiumBot(userData.botId, false).catch(error => console.error('[Premium] تعذر إيقاف البوت المنتهي:', error.message));
+    }
 
     const settings = await db.get('premium_settings');
     if (settings) {
@@ -1120,12 +1124,23 @@ async function migrateLegacyPremiumTokens(db) {
 function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
     if (client.user.id === MAKER_BOT_ID) {
         if (typeof createBotClient === 'function' && !client._registerPremiumBot) {
+            client._hasRegisteredBotToken = token => bots.some(item => item._botToken === token);
             client._registerPremiumBot = async (token) => {
                 const existing = bots.find(item => item._botToken === token);
-                if (existing) throw new Error('This bot token is already loaded.');
+                if (existing) {
+                    if (!existing.isReady()) await existing.login(token);
+                    return existing;
+                }
                 const botClient = createBotClient(token, bots.length);
                 bots.push(botClient);
                 return botClient;
+            };
+            client._controlPremiumBot = async (botId, active) => {
+                const target = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
+                if (!target || !target._botToken || botId === MAKER_BOT_ID) return false;
+                if (active && !target.isReady()) await target.login(target._botToken);
+                else if (!active && target.isReady()) { target._dashboardBotId = botId; await target.destroy(); }
+                return true;
             };
         }
         if (!client._premiumTokenMigration) {
