@@ -693,6 +693,26 @@ async function handlePremiumBuyModal(i, db, client) {
     const botId = i.fields.getTextInputValue('bot_id');
     const guildId = i.fields.getTextInputValue('guild_id');
 
+    if (!/^\d{17,20}$/.test(botId) || !/^\d{17,20}$/.test(guildId) || !botToken || botToken.length > 200) {
+        return i.reply({ content: '❌ بيانات البوت أو السيرفر غير صالحة.', ephemeral: true });
+    }
+    try {
+        const identityResponse = await fetch('https://discord.com/api/v10/users/@me', {
+            headers: { Authorization: 'Bot ' + botToken }
+        });
+        if (!identityResponse.ok) return i.reply({ content: '❌ التوكن غير صالح أو لا يمكن التحقق منه.', ephemeral: true });
+        const identity = await identityResponse.json();
+        if (identity.id !== botId) return i.reply({ content: '❌ آيدي البوت لا يطابق التوكن الذي أدخلته.', ephemeral: true });
+        const guildResponse = await fetch('https://discord.com/api/v10/guilds/' + guildId, {
+            headers: { Authorization: 'Bot ' + botToken }
+        });
+        if (!guildResponse.ok) return i.reply({ content: '❌ البوت غير موجود في السيرفر المحدد أو لا يمكنه الوصول إليه.', ephemeral: true });
+        if (tokenVault.hasToken(botToken)) return i.reply({ content: '❌ هذا التوكن مسجل مسبقاً في النظام.', ephemeral: true });
+    } catch (error) {
+        console.error('[Premium validation]', error.message);
+        return i.reply({ content: '❌ تعذر التحقق من بيانات البوت حالياً. حاول لاحقاً.', ephemeral: true });
+    }
+
     const planId = await db.get(`premium_plan_${i.user.id}`);
     if (!planId) return i.reply({ content: '❌ لم يتم اختيار خطة.', ephemeral: true });
 
@@ -898,7 +918,8 @@ async function addPremiumUser(userId, data, db, client) {
     const { plan, planLabel, botToken, botId, guildId, price, days } = data;
 
     // Persist the token only in the encrypted vault; never in the subscription DB.
-    tokenVault.addToken(botToken);
+    const added = tokenVault.addToken(botToken);
+    if (!added) throw new Error('هذا التوكن مسجل مسبقاً في النظام.');
 
     const endDate = Date.now() + (days * 24 * 60 * 60 * 1000);
     const userData = {
@@ -920,6 +941,19 @@ async function addPremiumUser(userId, data, db, client) {
     };
 
     await db.set(`premium_user_${userId}`, userData);
+    if (client && typeof client._registerPremiumBot === 'function') {
+        try {
+            await client._registerPremiumBot(botToken);
+            userData.runtimeStatus = 'starting';
+        } catch (error) {
+            console.error('[Premium] تعذر تشغيل البوت بعد التفعيل:', error.message);
+            userData.runtimeStatus = 'pending_restart';
+        }
+        await db.set(`premium_user_${userId}`, userData);
+    } else {
+        userData.runtimeStatus = 'pending_restart';
+        await db.set(`premium_user_${userId}`, userData);
+    }
     return userData;
 }
 
@@ -1083,8 +1117,17 @@ async function migrateLegacyPremiumTokens(db) {
     }
 }
 
-function setupMakerSystem(client, bots, db, config, fs) {
+function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
     if (client.user.id === MAKER_BOT_ID) {
+        if (typeof createBotClient === 'function' && !client._registerPremiumBot) {
+            client._registerPremiumBot = async (token) => {
+                const existing = bots.find(item => item._botToken === token);
+                if (existing) throw new Error('This bot token is already loaded.');
+                const botClient = createBotClient(token, bots.length);
+                bots.push(botClient);
+                return botClient;
+            };
+        }
         if (!client._premiumTokenMigration) {
             client._premiumTokenMigration = migrateLegacyPremiumTokens(db).catch((error) => {
                 console.error('[Security] فشل ترحيل توكنات Premium القديمة:', error.message);
