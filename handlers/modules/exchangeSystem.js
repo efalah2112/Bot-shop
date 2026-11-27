@@ -422,7 +422,7 @@ module.exports = function registerExchangeSystem(client, { db, config }) {
         try {
             const all = await db.all();
             const activePremium = (all || []).some(entry =>
-                String(entry.id || "").startsWith("premium_user_") &&
+                (String(entry.id || "").startsWith("premium_user_") || String(entry.id || "").startsWith("maker_free_trial_")) &&
                 entry.value?.botId === client.user?.id &&
                 entry.value.active &&
                 Number(entry.value.endDate) > Date.now()
