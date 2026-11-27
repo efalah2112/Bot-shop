@@ -309,12 +309,16 @@ function setupDashboard(app, { bots, db }) {
     } catch (error) { console.error("[Support ticket reply]", error); json(res, 500, { error: "تعذر إرسال الرد." }); }
   });
 
-  app.post("/dashboard/api/support/:ticketNo/status", requireUser, requireMaker, async (req, res) => {
+  app.post("/dashboard/api/support/:ticketNo/status", requireUser, async (req, res) => {
     try {
       const ticketNo = Number(req.params.ticketNo), status = String(req.body?.status || "");
       if (!Number.isSafeInteger(ticketNo) || ticketNo < 1 || !["open","closed"].includes(status)) return json(res, 400, { error: "حالة التذكرة غير صالحة." });
       const key = "maker_support_ticket_" + ticketNo, ticket = await db.get(key);
       if (!ticket) return json(res, 404, { error: "التذكرة غير موجودة." });
+      const staff = isDeveloper(req.session.user.id);
+      if (!staff && ticket.userId !== req.session.user.id) return json(res, 403, { error: "لا تملك صلاحية الوصول إلى هذه التذكرة." });
+      if (status === "open" && !staff) return json(res, 403, { error: "إعادة فتح التذكرة متاحة لفريق الدعم فقط." });
+      if (ticket.status === status) return json(res, 200, { success: true, status });
       ticket.status = status; ticket.updatedAt = Date.now(); ticket.closedBy = status === "closed" ? req.session.user.id : null;
       await db.set(key, ticket); json(res, 200, { success: true, status });
     } catch (error) { console.error("[Support ticket status]", error); json(res, 500, { error: "تعذر تحديث حالة التذكرة." }); }
