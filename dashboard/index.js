@@ -356,18 +356,18 @@ function setupDashboard(app, { bots, db }) {
       if (!guildResponse.ok) return json(res, 400, { error: "البوت غير موجود في السيرفر المحدد أو لا يستطيع الوصول إليه." });
       const trialKey = "maker_free_trial_" + identity.id;
       const existingTrial = await db.get(trialKey);
-      if (existingTrial) return json(res, 409, { error: "سبق استخدام تجربة مجانية لهذا البوت؛ لا يمكن تكرارها." });
+      if (existingTrial?.active && Number(existingTrial.endDate) > Date.now()) {
+        return json(res, 409, { error: "يوجد تفعيل Premium مجاني نشط لهذا البوت بالفعل؛ أوقفه أو انتظر انتهاؤه أولاً." });
+      }
       const rows = await db.all();
       const paid = (rows || []).some(row => String(row.id || "").startsWith("premium_user_") && row.value?.botId === identity.id && row.value.active && Number(row.value.endDate) > Date.now());
       if (paid) return json(res, 409, { error: "هذا البوت لديه اشتراك Premium مدفوع نشط بالفعل." });
-      const activeTrials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value?.active && Number(row.value.endDate) > Date.now());
-      if (activeTrials.length >= 3) return json(res, 429, { error: "وصلت إلى الحد الأقصى: 3 تجارب مجانية نشطة في الوقت نفسه." });
       const makerClient = getBot(maker.MAKER_BOT_ID);
       if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
       const registeredClient = bots.find(item => item._botToken === token);
       const wasRunningBeforeTrial = Boolean(registeredClient?.isReady());
       const now = Date.now();
-      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, wasRunningBeforeTrial, botTokenEncrypted: tokenVault.encryptToken(token), startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
+      const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, wasRunningBeforeTrial, botTokenEncrypted: tokenVault.encryptToken(token), startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني للمطوّر", createdAt: now, reissued: Boolean(existingTrial) };
       await db.set(trialKey, trial);
       try {
         const runtimeClient = await makerClient._registerPremiumBot(token);
@@ -394,11 +394,25 @@ function setupDashboard(app, { bots, db }) {
       trial.active = false; trial.status = "revoked"; trial.endDate = Math.min(Number(trial.endDate || Date.now()), Date.now()); trial.revokedAt = Date.now(); trial.revokedBy = req.session.user.id; delete trial.botTokenEncrypted;
       await db.set(key, trial);
       const target = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
-      if (trial.wasRunningBeforeTrial && target?.isReady()) {
-        target.emit("clientReady");
-      } else {
-        const makerClient = getBot(maker.MAKER_BOT_ID);
-        if (makerClient?._controlPremiumBot) await makerClient._controlPremiumBot(botId, false);
+      const makerClient = getBot(maker.MAKER_BOT_ID);
+      const stillPremium = target && typeof target._refreshPremiumEntitlement === "function"
+        ? await target._refreshPremiumEntitlement().catch(() => false)
+        : false;
+      if (target && (trial.wasRunningBeforeTrial || stillPremium)) {
+        target._premiumEntitled = Boolean(stillPremium);
+        if (stillPremium) {
+          if (typeof target._dashboardRestoreMzad2Timers === "function") await target._dashboardRestoreMzad2Timers().catch(() => {});
+          if (typeof target._dashboardRefreshExchangeCron === "function") {
+            for (const guild of target.guilds.cache.values()) await target._dashboardRefreshExchangeCron(guild.id).catch(() => {});
+          }
+        } else {
+          if (typeof target._dashboardStopPrivateAuctions === "function") await target._dashboardStopPrivateAuctions().catch(() => {});
+          if (typeof target._dashboardRefreshExchangeCron === "function") {
+            for (const guild of target.guilds.cache.values()) await target._dashboardRefreshExchangeCron(guild.id, true).catch(() => {});
+          }
+        }
+      } else if (makerClient?._controlPremiumBot) {
+        await makerClient._controlPremiumBot(botId, false);
       }
       json(res, 200, { revoked: true });
     } catch (error) { console.error("[Maker trial revoke]", error); json(res, 500, { error: "تعذر إيقاف الفترة التجريبية." }); }
