@@ -133,7 +133,8 @@ module.exports = function registerExchangeSystem(client, { db, config }) {
         if (j) { try { j.stop(); } catch {} cronJobs.delete(guildId); }
     }
 
-    client._dashboardRefreshExchangeCron = async (guildId) => {
+    client._dashboardRefreshExchangeCron = async (guildId, forceStop = false) => {
+        if (forceStop || !client._premiumEntitled) { stopCronFor(guildId); return; }
         const cfg = await getCfg(guildId);
         if (cfg.enabled) await startCronFor(guildId); else stopCronFor(guildId);
     };
