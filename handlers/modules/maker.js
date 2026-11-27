@@ -1151,6 +1151,7 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                 const existing = bots.find(item => item._botToken === token);
                 if (existing) {
                     const existingId = existing._dashboardBotId || existing.user?.id || null;
+                    if (existing._dashboardTokenHash) await db.set('maker_bot_control_' + existing._dashboardTokenHash, { botId: existingId, stopped: false, updatedAt: Date.now() });
                     if (existing.isReady()) await existing.destroy();
                     await existing.login(token);
                     if (existingId) existing._dashboardBotId = existingId;
@@ -1163,6 +1164,7 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
             client._controlPremiumBot = async (botId, active) => {
                 const target = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
                 if (!target || !target._botToken || botId === MAKER_BOT_ID) return false;
+                if (target._dashboardTokenHash) await db.set('maker_bot_control_' + target._dashboardTokenHash, { botId, stopped: !active, updatedAt: Date.now(), reason: active ? 'subscription_active' : 'subscription_inactive' });
                 if (active && !target.isReady()) await target.login(target._botToken);
                 else if (!active && target.isReady()) { target._dashboardBotId = botId; await target.destroy(); }
                 return true;
