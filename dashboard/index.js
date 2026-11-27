@@ -352,27 +352,26 @@ function setupDashboard(app, { bots, db }) {
       if (!guildResponse.ok) return json(res, 400, { error: "البوت غير موجود في السيرفر المحدد أو لا يستطيع الوصول إليه." });
       const trialKey = "maker_free_trial_" + identity.id;
       const existingTrial = await db.get(trialKey);
-      if (existingTrial && existingTrial.status === "active" && Number(existingTrial.endDate) > Date.now()) return json(res, 409, { error: "لدى هذا البوت فترة تجريبية نشطة بالفعل." });
+      if (existingTrial) return json(res, 409, { error: "سبق استخدام تجربة مجانية لهذا البوت؛ لا يمكن تكرارها." });
       const rows = await db.all();
       const paid = (rows || []).some(row => String(row.id || "").startsWith("premium_user_") && row.value?.botId === identity.id && row.value.active && Number(row.value.endDate) > Date.now());
       if (paid) return json(res, 409, { error: "هذا البوت لديه اشتراك Premium مدفوع نشط بالفعل." });
+      const activeTrials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value?.active && Number(row.value.endDate) > Date.now());
+      if (activeTrials.length >= 3) return json(res, 429, { error: "وصلت إلى الحد الأقصى: 3 تجارب مجانية نشطة في الوقت نفسه." });
       const makerClient = getBot(maker.MAKER_BOT_ID);
       if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
       const alreadyRunning = Boolean(makerClient._hasRegisteredBotToken?.(token));
-      if (tokenVault.hasToken(token) && !alreadyRunning) return json(res, 409, { error: "التوكن محفوظ مسبقاً لكنه غير موجود ضمن جلسات التشغيل الحالية." });
-      const addedToken = tokenVault.addToken(token);
+      if (!alreadyRunning) return json(res, 409, { error: "أضف هذا البوت إلى عملية التشغيل المستقلة المسموح بها في استضافتك أولاً. هذه الصفحة لا تضيف بوتاً ثانياً إلى خادم Wispbyte." });
       const now = Date.now();
       const trial = { botId: identity.id, botName: identity.username, guildId, ownerId, issuedBy: req.session.user.id, startDate: now, endDate: now + durationHours * 3600000, durationHours, active: true, status: "active", planLabel: "Premium مجاني مؤقت", createdAt: now };
       await db.set(trialKey, trial);
-      let runtimeClient;
       try {
-        runtimeClient = await makerClient._registerPremiumBot(token);
-        if (!runtimeClient) throw new Error("Bot runtime was not created");
+        const runtimeClient = await makerClient._registerPremiumBot(token);
+        if (!runtimeClient) throw new Error("Bot runtime was not found");
         runtimeClient._dashboardBotId = identity.id;
         runtimeClient._dashboardOwnerId = ownerId;
       } catch (error) {
         await db.delete(trialKey);
-        if (addedToken) tokenVault.removeToken(token);
         throw error;
       }
       json(res, 201, { created: true, trial });
