@@ -296,6 +296,7 @@ function setupDashboard(app, { bots, db }) {
       const removed = tokenVault.removeToken(client._botToken);
       if (!removed) return json(res, 409, { error: "هذا التوكن مُدار من متغيرات الاستضافة ولا يمكن حذفه من ملف الإعدادات." });
       if (client.isReady()) await client.destroy();
+      if (client._dashboardTokenHash) await db.delete("maker_bot_control_" + client._dashboardTokenHash);
       const index = bots.indexOf(client); if (index >= 0) bots.splice(index, 1);
       json(res, 200, { deleted: true });
     } catch (error) { console.error("[Maker remove bot]", error); json(res, 500, { error: "تعذر حذف البوت." }); }
@@ -329,8 +330,15 @@ function setupDashboard(app, { bots, db }) {
       const client = bots.find(item => (item._dashboardBotId || item.user?.id) === botId);
       if (!client) return json(res, 404, { error: "لم يتم العثور على عميل هذا البوت في قائمة التشغيل الحالية." });
       if (!client._botToken) return json(res, 409, { error: "لا يتوفر توكن تشغيل محفوظ لهذا البوت؛ لم يتم تنفيذ أي تغيير." });
-      if (action === "stop") { if (!client.isReady()) return json(res, 409, { error: "البوت متوقف بالفعل." }); client._dashboardBotId = botId; await client.destroy(); return json(res, 200, { success: true, status: "stopped" }); }
+      const controlKey = client._dashboardTokenHash ? "maker_bot_control_" + client._dashboardTokenHash : null;
+      if (action === "stop") {
+        if (!client.isReady()) return json(res, 409, { error: "البوت متوقف بالفعل." });
+        if (controlKey) await db.set(controlKey, { botId, stopped:true, updatedAt:Date.now(), reason:"maker_manual" });
+        client._dashboardBotId = botId; await client.destroy();
+        return json(res, 200, { success: true, status: "stopped" });
+      }
       if (action === "start" && client.isReady()) return json(res, 409, { error: "البوت يعمل بالفعل." });
+      if (controlKey) await db.set(controlKey, { botId, stopped:false, updatedAt:Date.now(), reason:"maker_manual" });
       if (action === "restart" && client.isReady()) { client._dashboardBotId = botId; await client.destroy(); }
       await client.login(client._botToken); client._dashboardBotId = botId;
       return json(res, 200, { success: true, status: action === "start" ? "started" : "restarted" });
