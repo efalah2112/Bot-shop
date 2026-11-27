@@ -573,6 +573,69 @@ function setupDashboard(app, { bots, db }) {
     }
   };
 
+  app.get("/dashboard/api/identity", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const me = await access.guild.members.fetchMe().catch(() => null);
+      json(res, 200, {
+        botName: access.bot.user.username,
+        avatar: access.bot.user.displayAvatarURL({ size: 256 }),
+        nickname: me?.nickname || "",
+        guildName: access.guild.name
+      });
+    } catch (error) {
+      console.error("[Dashboard identity]", error.message);
+      json(res, 500, { error: "تعذر تحميل هوية البوت." });
+    }
+  });
+
+  app.post("/dashboard/api/identity", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.body || {});
+      if (!access) return;
+      const nickname = String(req.body?.nickname || "").trim();
+      if (nickname.length > 32) return json(res, 400, { error: "اسم البوت داخل السيرفر يجب ألا يتجاوز 32 حرفاً." });
+      const me = await access.guild.members.fetchMe();
+      if (!me.permissions.has("ManageNicknames")) return json(res, 403, { error: "البوت يحتاج صلاحية Manage Nicknames لتغيير اسمه داخل السيرفر." });
+      await me.setNickname(nickname || null, "Dashboard bot identity update");
+      await audit(access.guildId, req.session.user, "identity", ["تحديث الاسم الظاهر للبوت"]);
+      json(res, 200, { saved: true, nickname });
+    } catch (error) {
+      console.error("[Dashboard identity update]", error.message);
+      json(res, 500, { error: "تعذر تحديث اسم البوت. تحقق من صلاحياته وترتيب رتبته." });
+    }
+  });
+
+  app.get("/dashboard/api/tickets", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      const entries = await db.all();
+      const prefixes = [
+        ["shop_ticket_channel_", "متجر"],
+        ["auction_ticket_channel_", "مزاد"],
+        ["order_ticket_channel_", "طلب"]
+      ];
+      const tickets = [];
+      for (const entry of entries || []) {
+        const key = String(entry.id || "");
+        const prefix = prefixes.find(([value]) => key.startsWith(value));
+        if (!prefix) continue;
+        const value = entry.value || {};
+        if (value.guildId !== access.guildId) continue;
+        const channelId = key.slice(prefix[0].length);
+        const channel = await access.guild.channels.fetch(channelId).catch(() => null);
+        if (!channel) continue;
+        tickets.push({ channelId, channelName: channel.name, type: prefix[1], ownerId: value.ownerId || null, url: "https://discord.com/channels/" + access.guildId + "/" + channelId });
+      }
+      json(res, 200, { tickets: tickets.slice(0, 100) });
+    } catch (error) {
+      console.error("[Dashboard tickets]", error.message);
+      json(res, 500, { error: "تعذر تحميل التذاكر المفتوحة." });
+    }
+  });
+
   app.get("/dashboard/api/embed-templates", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.query);
