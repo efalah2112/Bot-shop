@@ -107,6 +107,12 @@ function hasToken(token, filePath = './config.json') {
     return loadTokens(config, filePath).includes(token);
 }
 
+function countTokens(filePath = './config.json') {
+    const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (Array.isArray(config.encryptedTokens)) return config.encryptedTokens.length;
+    return Array.isArray(config.tokens) ? config.tokens.length : 0;
+}
+
 function removeToken(token, filePath = './config.json') {
     const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     const tokens = loadTokens(config, filePath);
@@ -122,5 +128,6 @@ module.exports = {
     loadTokens,
     addToken,
     hasToken,
+    countTokens,
     removeToken
 };
