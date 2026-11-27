@@ -1217,7 +1217,7 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                         try {
                             const token = tokenVault.decryptToken(trial.botTokenEncrypted);
                             let runtimeClient = bots.find(item => item._botToken === token);
-                            if (!runtimeClient) runtimeClient = await client._registerPremiumBot(token);
+                            if (!runtimeClient || !runtimeClient.isReady()) runtimeClient = await client._registerPremiumBot(token);
                             if (runtimeClient) {
                                 runtimeClient._dashboardBotId = trial.botId;
                                 runtimeClient._dashboardOwnerId = trial.ownerId;
