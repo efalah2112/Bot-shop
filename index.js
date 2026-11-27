@@ -42,6 +42,7 @@ const environmentTokens = (process.env.BOT_TOKENS || '')
     .split(',')
     .map(token => token.trim())
     .filter(Boolean);
+const environmentTokenSet = new Set(environmentTokens);
 config.tokens = [...new Set([...(config.tokens || []), ...environmentTokens])];
 
 // ========== MAKER SYSTEM ==========
@@ -2526,6 +2527,7 @@ function createBotClient(token, index) {
   require("./handlers/interactions")(client, { db, config, botOwner, allowedUserId, owner: botOwner, TARGET_ROLE_ID: "1384831324015296614", TARGET_CHANNEL_ID: "1492886293800288527", logJoinChannel, allowedBotId, prefix, TARGET_GUILD_ID, reportsChannelId: "1492886293800288527", reportsGuildId: "1500197339329986690", chsd });
 
   client._botToken = token;
+  client._dashboardTokenSource = environmentTokenSet.has(token) || token === makerToken || token === generalToken ? "protected" : "config";
 
   // ========== GUILD JOIN ==========
     // ========== INTERACTIONS ==========
