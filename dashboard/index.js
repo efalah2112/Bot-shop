@@ -278,7 +278,7 @@ function setupDashboard(app, { bots, db }) {
       if (tokenVault.hasToken(token) || makerClient?._hasRegisteredBotToken?.(token)) return json(res, 409, { error: "هذا التوكن مسجل مسبقاً." });
       if (!makerClient?._registerPremiumBot) return json(res, 503, { error: "نظام تشغيل البوتات غير جاهز حالياً." });
       tokenVault.addToken(token);
-      try { await makerClient._registerPremiumBot(token); } catch (error) { tokenVault.removeToken(token); throw error; }
+      try { const runtimeClient = await makerClient._registerPremiumBot(token); if (runtimeClient) runtimeClient._dashboardBotId = identity.id; } catch (error) { tokenVault.removeToken(token); throw error; }
       json(res, 201, { added: true, bot: { id: identity.id, username: identity.username } });
     } catch (error) { console.error("[Maker add bot token]", error.message); json(res, 500, { error: "تعذر إضافة البوت وتشغيله." }); }
     finally { token = ""; }
