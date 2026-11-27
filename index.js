@@ -29,6 +29,25 @@ const { QuickDB, SqliteDriver } = require("quick.db");
 const sqliteDriver = new SqliteDriver("./database.sqlite");
 const db = QuickDB.createSingleton({ driver: sqliteDriver });
 
+// Persist a bounded, redacted copy of the Node process console for the Maker console tab.
+const hostConsoleOriginal = { log: console.log.bind(console), info: console.info.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
+let hostConsoleQueue = Promise.resolve();
+for (const level of Object.keys(hostConsoleOriginal)) {
+  console[level] = (...args) => {
+    hostConsoleOriginal[level](...args);
+    try {
+      const raw = require("util").format(...args);
+      const message = String(raw).replace(/[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{6,}\\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]").slice(0, 1800);
+      hostConsoleQueue = hostConsoleQueue.then(async () => {
+        const current = await db.get("maker_host_console_logs");
+        const entries = Array.isArray(current) ? current : [];
+        entries.push({ at: Date.now(), level, message });
+        await db.set("maker_host_console_logs", entries.slice(-300));
+      }).catch(() => {});
+    } catch {}
+  };
+}
+
 const config = require("./config.json");
 const tokenVault = require("./handlers/modules/tokenVault");
 
@@ -2465,7 +2484,7 @@ function createBotClient(token, index) {
 
     const premiumRecordsAtStartup = await db.all();
     const isPremiumBot = (premiumRecordsAtStartup || []).some(entry =>
-      String(entry.id || "").startsWith("premium_user_") &&
+      (String(entry.id || "").startsWith("premium_user_") || String(entry.id || "").startsWith("maker_free_trial_")) &&
       entry.value?.botId === client.user.id &&
       entry.value.active &&
       Number(entry.value.endDate) > Date.now()
