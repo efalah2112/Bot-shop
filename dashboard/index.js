@@ -474,32 +474,99 @@ function setupDashboard(app, { bots, db }) {
     } catch (error) { console.error("[Maker remove bot]", error); json(res, 500, { error: "تعذر حذف البوت." }); }
   });
   app.get("/dashboard/api/maker/overview", requireUser, requireMaker, async (_req, res) => {
+    // Keep this endpoint resilient: one damaged/missing data source must not blank the entire Maker workspace.
+    const safeGet = async (key, fallback = null) => {
+      try { const value = await db.get(key); return value == null ? fallback : value; }
+      catch (error) { console.warn("[Maker overview] Could not read " + key + ":", error.message); return fallback; }
+    };
     try {
-      const rows = await db.all();
-      const premiumRows = (rows || []).filter(row => String(row.id || "").startsWith("premium_user_") && row.value && typeof row.value === "object");
+      let rawRows = [];
+      try { rawRows = await db.all(); }
+      catch (error) { console.error("[Maker overview] Database scan failed:", error.stack || error); }
+      const rows = Array.isArray(rawRows)
+        ? rawRows
+        : rawRows && typeof rawRows === "object"
+          ? Object.entries(rawRows).map(([id, value]) => ({ id, value }))
+          : [];
+      const premiumRows = rows.filter(row => String(row?.id || "").startsWith("premium_user_") && row.value && typeof row.value === "object");
       const premiumRecords = premiumRows.map(row => row.value);
-      const trialRows = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value && typeof row.value === "object");
+      const trialRows = rows.filter(row => String(row?.id || "").startsWith("maker_free_trial_") && row.value && typeof row.value === "object");
       const trialRecords = trialRows.map(row => row.value);
       const premiumBotIds = new Set([...premiumRecords, ...trialRecords.filter(record => record.active && Number(record.endDate) > Date.now())].map(record => String(record.botId || "")));
-      const botList = bots.map(client => {
+      const botList = (Array.isArray(bots) ? bots : []).filter(Boolean).map(client => {
+        let ready = false;
+        try { ready = Boolean(client.isReady?.()); } catch {}
         const botId = client._dashboardBotId || client.user?.id || null;
         if (botId) client._dashboardBotId = botId;
-        const subscription = premiumRecords.find(record => record.botId === botId);
-        return { id: botId, username: client.user?.username || (botId ? "بوت غير متصل" : "بوت لم يسجل الدخول"), avatar: client.user?.displayAvatarURL?.({ size: 96 }) || null, ready: Boolean(client.isReady()), guildCount: client.guilds?.cache?.size || 0, ping: Number.isFinite(client.ws?.ping) ? client.ws.ping : null, uptime: client.uptime || null, kind: botId === maker.MAKER_BOT_ID ? "maker" : premiumBotIds.has(botId) ? "premium" : "standard", ownerId: subscription?.userId || client._dashboardOwnerId || null, canControl: Boolean(botId && botId !== maker.MAKER_BOT_ID && client._botToken), canDelete: Boolean(client._dashboardTokenSource === "config") };
+        const subscription = premiumRecords.find(record => String(record.botId || "") === String(botId || ""));
+        let avatar = null;
+        try { avatar = client.user?.displayAvatarURL?.({ size: 96 }) || null; } catch {}
+        return {
+          id: botId,
+          username: client.user?.username || (botId ? "بوت غير متصل" : "بوت لم يسجل الدخول"),
+          avatar, ready,
+          guildCount: Number(client.guilds?.cache?.size || 0),
+          ping: Number.isFinite(client.ws?.ping) ? client.ws.ping : null,
+          uptime: client.uptime || null,
+          kind: botId === maker.MAKER_BOT_ID ? "maker" : premiumBotIds.has(String(botId || "")) ? "premium" : "standard",
+          ownerId: subscription?.userId || client._dashboardOwnerId || null,
+          canControl: Boolean(botId && botId !== maker.MAKER_BOT_ID && client._botToken),
+          canDelete: Boolean(client._dashboardTokenSource === "config")
+        };
       });
-      const subscriptions = premiumRecords.map(record => ({ userId: String(record.userId || ""), botId: String(record.botId || ""), guildId: String(record.guildId || ""), plan: String(record.planLabel || record.plan || "Premium"), active: Boolean(record.active), startDate: Number(record.startDate || 0), endDate: Number(record.endDate || 0), status: record.active && Number(record.endDate) > Date.now() ? "active" : Number(record.endDate) <= Date.now() ? "expired" : "inactive", renewalCount: Number(record.renewalCount || 0), price: Number(record.price || 0) }));
-      const settings = await db.get("premium_settings") || null;
-      const pendingCount = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_")).length;
-      const pendingRequests = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_") && row.value).map(row => ({ userId:String(row.value.userId || ""), plan:String(row.value.planLabel || row.value.plan || ""), price:Number(row.value.price || 0), botId:String(row.value.botId || ""), guildId:String(row.value.guildId || ""), channelId:String(row.value.channelId || ""), timestamp:Number(row.value.timestamp || 0), tokenStored:Boolean(row.value.botTokenEncrypted) }));
-      const logs = bots.flatMap(client => (client._makerLogs || []).map(log => ({ ...log, botId:client._dashboardBotId || client.user?.id || null, botName:client.user?.username || "بوت غير متصل" }))).sort((a,b)=>b.at-a.at).slice(0,50);
-      const trials = (rows || []).filter(row => String(row.id || "").startsWith("maker_free_trial_") && row.value).map(row => row.value).sort((a,b)=>Number(b.startDate||0)-Number(a.startDate||0));
-      const hostConsoleLogs = await db.get("maker_host_console_logs") || [];
+      const subscriptions = premiumRecords.map(record => ({
+        userId: String(record.userId || ""), botId: String(record.botId || ""), guildId: String(record.guildId || ""),
+        plan: String(record.planLabel || record.plan || "Premium"), active: Boolean(record.active),
+        startDate: Number(record.startDate || 0), endDate: Number(record.endDate || 0),
+        status: record.active && Number(record.endDate) > Date.now() ? "active" : Number(record.endDate) <= Date.now() ? "expired" : "inactive",
+        renewalCount: Number(record.renewalCount || 0), price: Number(record.price || 0)
+      }));
+      const pendingRows = rows.filter(row => String(row?.id || "").startsWith("premium_temp_") && row.value);
+      const pendingRequests = pendingRows.map(row => ({
+        userId: String(row.value.userId || ""), plan: String(row.value.planLabel || row.value.plan || ""),
+        price: Number(row.value.price || 0), botId: String(row.value.botId || ""), guildId: String(row.value.guildId || ""),
+        channelId: String(row.value.channelId || ""), timestamp: Number(row.value.timestamp || 0),
+        tokenStored: Boolean(row.value.botTokenEncrypted)
+      }));
+      const logs = (Array.isArray(bots) ? bots : []).filter(Boolean)
+        .flatMap(client => (Array.isArray(client._makerLogs) ? client._makerLogs : []).map(log => ({
+          ...log, botId: client._dashboardBotId || client.user?.id || null, botName: client.user?.username || "بوت غير متصل"
+        }))).sort((a,b) => Number(b.at || 0) - Number(a.at || 0)).slice(0,50);
+      const trials = trialRows.map(row => row.value).sort((a,b) => Number(b.startDate || 0) - Number(a.startDate || 0));
+      const hostConsoleLogsValue = await safeGet("maker_host_console_logs", []);
       let storedTokenCount = 0;
       try { storedTokenCount = tokenVault.countTokens(); }
-      catch (error) { console.warn("[Maker dashboard overview] Token count unavailable:", error.message); }
-      const makerClient = getBot(maker.MAKER_BOT_ID);
-      json(res, 200, { trials, hostConsoleLogs: Array.isArray(hostConsoleLogs) ? hostConsoleLogs.slice(-300).reverse() : [], stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), pendingRequests, logs, storedTokenCount, premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: (() => { try { return tokenVault.isConfigured(); } catch { return false; } })(), makerBotConfigured: Boolean(makerClient?._botToken), makerBotReady: Boolean(makerClient?.isReady?.()) });
-    } catch (error) { console.error("[Maker dashboard overview]", error?.stack || error); json(res, 500, { error: "تعذر تحميل بيانات الميكر.", code: "MAKER_OVERVIEW_FAILED" }); }
+      catch (error) { console.warn("[Maker overview] Token count unavailable:", error.message); }
+      const makerClient = (Array.isArray(bots) ? bots : []).find(client => client?.user?.id === maker.MAKER_BOT_ID) || null;
+      const settings = await safeGet("premium_settings", null);
+      const safeReady = (() => { try { return Boolean(makerClient?.isReady?.()); } catch { return false; } })();
+      json(res, 200, {
+        trials,
+        hostConsoleLogs: Array.isArray(hostConsoleLogsValue) ? hostConsoleLogsValue.slice(-300).reverse() : [],
+        stats: {
+          totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length,
+          totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0),
+          totalSubscriptions: subscriptions.length,
+          activeSubscriptions: subscriptions.filter(item => item.status === "active").length,
+          pendingPremiumRequests: pendingRows.length
+        },
+        bots: botList,
+        subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate),
+        pendingRequests, logs, storedTokenCount,
+        premiumSettings: settings ? {
+          guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null,
+          premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null,
+          ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0),
+          price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0)
+        } : null,
+        tokenEncryptionConfigured: (() => { try { return tokenVault.isConfigured(); } catch { return false; } })(),
+        makerBotConfigured: Boolean(makerClient?._botToken),
+        makerBotReady: safeReady
+      });
+    } catch (error) {
+      console.error("[Maker dashboard overview]", error?.stack || error);
+      json(res, 500, { error: "تعذر تحميل بيانات الميكر.", code: "MAKER_OVERVIEW_FAILED", detail: String(error?.message || error).slice(0, 240) });
+    }
   });
 
   app.post("/dashboard/api/maker/bots/:botId/action", requireUser, requireMaker, async (req, res) => {
@@ -808,10 +875,7 @@ function setupDashboard(app, { bots, db }) {
       applyDisabled: ["apply_disabled", "boolean"], applyQuestions: ["apply_qs", "questions"]
     },
     stores: {
-      shopAdmin: ["shopad", "role"], highStaff: ["highstaff", "role"],
-      shopVacationPrice: ["shopvacation", "money"], disableAutoPrice: ["disableauto", "money"],
-      activateShopPrice: ["activateshopprice", "money"], sellShopPrice: ["sellshopprice", "money"],
-      autoMessagePrice: ["automessage", "money"]
+      shopAdmin: ["shopad", "role"], highStaff: ["highstaff", "role"]
     },
     auction: {
       auctionAdmin: ["auctionad", "role"], auctionRoom: ["auctionroom", "channel"],
@@ -821,8 +885,7 @@ function setupDashboard(app, { bots, db }) {
     },
     orders: {
       orderAdmin: ["orderad", "role"], orderRoom: ["orderroom", "channel"],
-      orderMentionRole: ["order-mentionrole", "role"], orderEveryPrice: ["order-evrypri", "money"],
-      orderHerePrice: ["order-herepri", "money"], orderBasePrice: ["order-orderpri", "money"]
+      orderMentionRole: ["order-mentionrole", "role"]
     },
     shortcuts: {
       mention: ["shortcut_mention", "string"], warning: ["shortcut_warning", "string"],
@@ -834,14 +897,20 @@ function setupDashboard(app, { bots, db }) {
     },
     pricing: {
       everyonePrice: ["evrypri", "money"], herePrice: ["herepri", "money"],
-      shopMentionPrice: ["shopprice", "money"], orderEveryonePrice: ["order-evrypri", "money"],
-      orderHerePrice: ["order-herepri", "money"], orderBasePrice: ["order-orderpri", "money"],
+      shopMentionPrice: ["shopprice", "money"],
+      orderEveryonePrice: ["order-evrypri", "money"], orderHerePrice: ["order-herepri", "money"],
+      orderBasePrice: ["order-orderpri", "money"],
       auctionEveryonePrice: ["auction-evrypri", "money"], auctionHerePrice: ["auction-herepri", "money"],
-      auctionBidPrice: ["auction-mzadpri", "money"], changeNamePrice: ["changename", "money"],
-      changeOwnerPrice: ["changeowner", "money"], rolePrice: ["customroleprice", "money"]
+      auctionBidPrice: ["auction-mzadpri", "money"],
+      changePartnersPrice: ["changepartnerscredit", "money"], removeWarnPrice: ["removewarncredit", "money"],
+      changeNamePrice: ["changename", "money"], changeOwnerPrice: ["changeowner", "money"],
+      autoMessagePrice: ["automessage", "money"], changeShapePrice: ["changeshape", "money"],
+      changeTypePrice: ["changetypeprice", "money"], shopVacationPrice: ["shopvacation", "money"],
+      disableAutoPrice: ["disableauto", "money"], activateShopPrice: ["activateshopprice", "money"],
+      sellShopPrice: ["sellshopprice", "money"]
     },
     rules: {
-      serverRules: ["server_rules", "words"], rulesImage: ["rulesImage", "url"],
+      rulesImage: ["rulesImage", "url"],
       auctionRules: ["mzad_rules", "words"]
     },
     showcase: { publicShowcase: ["dashboard_public_showcase", "boolean"] },
@@ -1614,6 +1683,68 @@ function setupDashboard(app, { bots, db }) {
     } catch (error) {
       console.error("[Dashboard save]", error.message);
       json(res, 500, { error: "تعذر حفظ الإعدادات." });
+    }
+  });
+
+  app.get("/dashboard/api/rules", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.query);
+      if (!access) return;
+      let rules = await db.get("server_rules_" + access.guildId) || [];
+      if (!Array.isArray(rules)) rules = [];
+      const normalized = rules.map((rule, index) => typeof rule === "string"
+        ? { id: "legacy-" + index, label: "قانون " + (index + 1), content: rule, emoji: null, image: null }
+        : rule && typeof rule === "object"
+          ? { id: String(rule.id || "legacy-" + index), label: String(rule.label || "قانون " + (index + 1)), content: String(rule.content || ""), emoji: rule.emoji || null, image: rule.image || null }
+          : null).filter(Boolean);
+      if (normalized.some((rule, index) => rule.id !== rules[index]?.id || typeof rules[index] === "string")) {
+        await db.set("server_rules_" + access.guildId, normalized);
+      }
+      json(res, 200, { rules: normalized });
+    } catch (error) {
+      console.error("[Dashboard rules load]", error.stack || error);
+      json(res, 500, { error: "تعذر تحميل القوانين." });
+    }
+  });
+
+  app.post("/dashboard/api/rules", requireUser, async (req, res) => {
+    try {
+      const access = await resolveWorkspace(req, res, req.body || {});
+      if (!access) return;
+      const action = String(req.body?.action || "");
+      const id = String(req.body?.id || "");
+      let rules = await db.get("server_rules_" + access.guildId) || [];
+      if (!Array.isArray(rules)) rules = [];
+      rules = rules.filter(rule => rule && typeof rule === "object" && rule.id);
+      if (action === "add" || action === "update") {
+        const label = String(req.body?.label || "").trim().slice(0, 80);
+        const content = String(req.body?.content || "").trim().slice(0, 1800);
+        const emoji = String(req.body?.emoji || "").trim().slice(0, 100) || null;
+        const image = String(req.body?.image || "").trim();
+        if (label.length < 2 || content.length < 2) return json(res, 400, { error: "اكتب اسم القانون ونصه." });
+        if (image && (!/^https:\/\/\S+$/i.test(image) || image.length > 500)) return json(res, 400, { error: "رابط صورة القانون يجب أن يبدأ بـ HTTPS." });
+        if (action === "add") {
+          if (rules.length >= 5) return json(res, 400, { error: "الحد الأقصى 5 قوانين، مثل نظام القوانين في البوت." });
+          const ruleId = crypto.randomBytes(4).toString("hex");
+          rules.push({ id: ruleId, label, content, emoji, image: image || null });
+        } else {
+          const index = rules.findIndex(rule => String(rule.id) === id);
+          if (index < 0) return json(res, 404, { error: "القانون المطلوب غير موجود." });
+          rules[index] = { ...rules[index], label, content, emoji, image: image || null };
+        }
+      } else if (action === "delete") {
+        const next = rules.filter(rule => String(rule.id) !== id);
+        if (next.length === rules.length) return json(res, 404, { error: "القانون المطلوب غير موجود." });
+        rules = next;
+      } else {
+        return json(res, 400, { error: "نوع العملية غير صالح." });
+      }
+      await db.set("server_rules_" + access.guildId, rules);
+      await audit(access.guildId, req.session.user, "rules", [action === "delete" ? "حذف قانون" : action === "update" ? "تعديل قانون" : "إضافة قانون"]);
+      json(res, 200, { saved: true, rules });
+    } catch (error) {
+      console.error("[Dashboard rules save]", error.stack || error);
+      json(res, 500, { error: "تعذر حفظ القانون." });
     }
   });
 
