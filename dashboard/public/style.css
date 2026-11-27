@@ -59,3 +59,19 @@
 
 .store-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 @media(max-width:560px){.store-row-actions{width:100%}.store-row-actions button{flex:1}}
+
+/* Dedicated Maker console */
+.maker-workspace{max-width:1440px;margin:0 auto;padding:42px 5.5% 80px;min-height:calc(100vh - 140px)}
+.maker-top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:28px}
+.maker-top h1{font-size:32px;margin:10px 0 5px}.maker-top p{font-size:11px;color:var(--muted);margin:0;line-height:2}
+.maker-top-actions,.maker-actions{display:flex;gap:8px;flex-wrap:wrap}
+.maker-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px;align-items:start}
+.maker-nav{display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#111a2d}
+.maker-nav-link{border:0;border-radius:10px;background:transparent;color:#aab6d2;text-align:right;padding:13px;font:inherit;font-size:11px;cursor:pointer}
+.maker-nav-link.active,.maker-nav-link:hover{background:#6857df32;color:#fff}
+.maker-main{min-width:0}.maker-page-heading{margin:4px 0 20px}.maker-page-heading h2{font-size:22px;margin:0 0 6px}.maker-page-heading p{font-size:10px;color:var(--muted);margin:0}
+.maker-item{margin-bottom:12px}.maker-item-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.maker-item-name{display:flex;flex-direction:column;gap:5px;min-width:0}.maker-item-name b{overflow-wrap:anywhere}.maker-item-name small{color:var(--muted);font-size:10px;overflow-wrap:anywhere}
+.maker-status{font-size:10px;padding:6px 10px;border-radius:20px;background:#343b50;color:#aab6d2;white-space:nowrap}.maker-status.ready{background:#164c43;color:#8cf0d6}
+.maker-actions{margin-top:12px}.maker-actions button{font-size:10px}
+@media(max-width:850px){.maker-layout{grid-template-columns:1fr}.maker-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.maker-top{align-items:flex-start;flex-direction:column}}
+@media(max-width:560px){.maker-workspace{padding:30px 18px 60px}.maker-top h1{font-size:26px}.maker-top-actions{width:100%}.maker-top-actions button{flex:1}.maker-nav{grid-template-columns:1fr 1fr}}
