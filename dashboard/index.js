@@ -681,7 +681,7 @@ function setupDashboard(app, { bots, db }) {
       const rawColor = String(req.body?.color || "#5865F2").trim();
       if (!title && !description) return json(res, 400, { error: "أدخل عنواناً أو وصفاً للإمبد." });
       if (!/^#?[0-9a-fA-F]{6}$/.test(rawColor)) return json(res, 400, { error: "لون الإمبد غير صالح." });
-      if (imageUrl && (!/^https:\\/\\/\\S+$/i.test(imageUrl) || imageUrl.length > 500)) return json(res, 400, { error: "رابط الصورة يجب أن يبدأ بـ HTTPS." });
+      if (imageUrl && (!/^https:\/\/\S+$/i.test(imageUrl) || imageUrl.length > 500)) return json(res, 400, { error: "رابط الصورة يجب أن يبدأ بـ HTTPS." });
       const template = { id: crypto.randomUUID(), title, description, footer, imageUrl, color: rawColor.startsWith("#") ? rawColor : "#" + rawColor, updatedAt: Date.now() };
       const key = "dashboard_embed_templates_" + access.guildId + "_" + access.mode;
       if (action === "save") {
