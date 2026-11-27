@@ -611,16 +611,14 @@ function setupDashboard(app, { bots, db }) {
         }
       }
       const me = await access.guild.members.fetchMe();
-      if (nickname !== undefined && !me.permissions.has("ManageNicknames")) {
+      const currentNickname = me.nickname || "";
+      if (nickname !== currentNickname && !me.permissions.has("ManageNicknames")) {
         return json(res, 403, { error: "البوت يحتاج صلاحية Manage Nicknames لتغيير اسمه داخل السيرفر." });
       }
-      if (nickname !== (me.nickname || "") && !me.permissions.has("ManageNicknames")) {
-        return json(res, 403, { error: "البوت يحتاج صلاحية Manage Nicknames لتغيير اسمه داخل السيرفر." });
-      }
-      if (nickname !== (me.nickname || "")) await me.setNickname(nickname || null, "Dashboard bot identity update");
+      if (nickname !== currentNickname) await me.setNickname(nickname || null, "Dashboard bot identity update");
       if (avatarUrl) await access.bot.user.setAvatar(avatarUrl);
       await audit(access.guildId, req.session.user, "identity", [
-        ...(nickname !== (me.nickname || "") ? ["تحديث الاسم الظاهر للبوت"] : []),
+        ...(nickname !== currentNickname ? ["تحديث الاسم الظاهر للبوت"] : []),
         ...(avatarUrl ? ["تحديث صورة حساب البوت"] : [])
       ]);
       json(res, 200, { saved: true, nickname, avatar: access.bot.user.displayAvatarURL({ size: 256 }) });
