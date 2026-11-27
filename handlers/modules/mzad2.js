@@ -571,6 +571,14 @@ async function startPaymentFlow(interaction, type, db, config) {
 
 // تصدير دالة المزاد وتضمين أحداث الـ client بالداخل لحل خطأ السكوب
 module.exports = function registerMzad2(client, { db, config }) {
+    const requirePremiumFeature = async (interaction) => {
+        if (client._premiumEntitled) return true;
+        if (interaction.isAutocomplete?.()) await interaction.respond([]).catch(() => {});
+        else if (interaction.isRepliable?.() && !interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: "المزاد الخاص متاح لبوتات Premium فقط.", flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return false;
+    };
 
     // ============================================
     // تعديل المزاد قبل النشر
@@ -579,6 +587,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         if (!interaction.isButton()) return;
         if (!interaction.customId.startsWith("mzad2_edit_")) return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
 
         const ownerId = interaction.customId.replace("mzad2_edit_", "");
         const guildId = interaction.guild.id;
@@ -820,6 +829,7 @@ module.exports = function registerMzad2(client, { db, config }) {
             !i.guild
         )
             return;
+        if (!(await requirePremiumFeature(i))) return;
         if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return i.reply({
                 content: "❌ يجب أن تكون لديك صلاحية **Administrator**!",
@@ -875,6 +885,7 @@ module.exports = function registerMzad2(client, { db, config }) {
             i.commandName === "remove-mzad2-type" &&
             i.guild
         ) {
+            if (!(await requirePremiumFeature(i))) return;
             const types = (await db.get(`mzad2_types_${i.guild.id}`)) || [];
             const focused = String(i.options.getFocused() || "").toLowerCase();
             const opts = types
@@ -1273,6 +1284,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         )
             return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
         const ownerId = interaction.customId.replace("mzad2_pick_type_", "");
         if (interaction.user.id !== ownerId) {
             return interaction.reply({
@@ -1300,6 +1312,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         )
             return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
         if (!(await requireAuctionAdmin(interaction, db))) return;
 
         const ownerId = interaction.customId.replace("mzad2_publish_", "");
@@ -1362,6 +1375,9 @@ module.exports = function registerMzad2(client, { db, config }) {
     //========= closemzad2 / reopenmzad2 / deletemzad2 =========
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.isButton() || !interaction.guild) return;
+        if (["closemzad2"].includes(interaction.customId) || String(interaction.customId || "").startsWith("mzad2_")) {
+            if (!(await requirePremiumFeature(interaction))) return;
+        }
         const channel = interaction.channel;
         const guildId = interaction.guild.id;
 
