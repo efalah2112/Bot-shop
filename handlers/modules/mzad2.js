@@ -930,6 +930,7 @@ module.exports = function registerMzad2(client, { db, config }) {
             !i.guild
         )
             return;
+        if (!(await requirePremiumFeature(i))) return;
         if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return i.reply({
                 content: "❌ يجب أن تكون لديك صلاحية **Administrator**!",
@@ -971,6 +972,7 @@ module.exports = function registerMzad2(client, { db, config }) {
             !i.guild
         )
             return;
+        if (!(await requirePremiumFeature(i))) return;
 
         if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return i.reply({
@@ -1041,6 +1043,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         if (!interaction.isButton()) return;
         if (interaction.customId !== "mzad2_prices") return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
 
         try {
             const guildId = interaction.guild.id;
@@ -1113,6 +1116,7 @@ module.exports = function registerMzad2(client, { db, config }) {
             !interaction.guild
         )
             return;
+        if (!(await requirePremiumFeature(interaction))) return;
 
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
@@ -1353,6 +1357,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         )
             return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
         const ownerId = interaction.customId.replace("mzad2_pub_cancel_", "");
         const guildId = interaction.guild.id;
         const adminRole = await db.get(`auctionad_${guildId}`);
@@ -1375,7 +1380,7 @@ module.exports = function registerMzad2(client, { db, config }) {
     //========= closemzad2 / reopenmzad2 / deletemzad2 =========
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.isButton() || !interaction.guild) return;
-        if (["closemzad2"].includes(interaction.customId) || String(interaction.customId || "").startsWith("mzad2_")) {
+        if (["closemzad2", "reopenmzad2", "deletemzad2"].includes(interaction.customId) || String(interaction.customId || "").startsWith("mzad2_")) {
             if (!(await requirePremiumFeature(interaction))) return;
         }
         const channel = interaction.channel;
@@ -1493,6 +1498,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         )
             return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
         if (!(await requireAuctionAdmin(interaction, db))) return;
 
         const roomId = interaction.customId.replace("mzad2_refresh_", "");
@@ -1556,6 +1562,7 @@ module.exports = function registerMzad2(client, { db, config }) {
         )
             return;
         if (!interaction.guild) return;
+        if (!(await requirePremiumFeature(interaction))) return;
         if (!(await requireAuctionAdmin(interaction, db))) return;
 
         const roomId = interaction.customId.replace("mzad2_cancel_", "");
