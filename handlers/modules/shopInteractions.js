@@ -1833,7 +1833,7 @@ async function handleAuctionPayment(interaction, db, config, type) {
         if (found) paidAmount = Number(found[1].replace(/,/g, ""));
         const bankMentionOk = content.includes(`<@!${bank}>`) || content.includes(`<@${bank}>`);
         const isTransfer = content.includes("has transferred") || content.includes("قام بتحويل");
-        if (isTransfer && bankMentionOk && paidAmount >= price) collector.stop("DONE");
+        if (isTransfer && bankMentionOk && paidAmount >= totalPrice) collector.stop("DONE");
     });
     const auctionadmin = await db.get(`auctionad_${guildId}`);
     collector.on("end", async (collected, reason) => {
@@ -3483,8 +3483,13 @@ client.on("interactionCreate", async (interaction) => {
     if (!interaction.customId.startsWith("roles_close_")) return;
     if (!interaction.guild) return;
     const meta = await db.get(`roles_ticket_channel_${interaction.channel.id}`);
-    const ownerId = meta?.ownerId || interaction.user.id;
-    const gId = meta?.guildId || interaction.guild.id;
+    if (!meta) return interaction.reply({ content: "**❌ بيانات التذكرة غير موجودة.**", flags: MessageFlags.Ephemeral });
+    const ownerId = meta.ownerId;
+    const gId = meta.guildId || interaction.guild.id;
+    const rolesAdminId = await db.get(`roles_admin_${gId}`);
+    const isOwner = interaction.user.id === ownerId;
+    const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) || (rolesAdminId && interaction.member?.roles?.cache?.has(rolesAdminId));
+    if (!isOwner && !isAdmin) return interaction.reply({ content: "**🚫 إغلاق التذكرة متاح لصاحبها أو مسؤول الرتب فقط.**", flags: MessageFlags.Ephemeral });
     await db.delete(`roles_ticket_${ownerId}_${gId}`);
     await db.delete(`roles_ticket_channel_${interaction.channel.id}`);
     await sendTicketRatingDM(ownerId, gId, "roles").catch(() => {});
@@ -3640,7 +3645,7 @@ client.on("interactionCreate", async (interaction) => {
         if (found) paidAmount = Number(found[1].replace(/,/g, ""));
         const bankOk = fullText.includes(`<@!${bank}>`) || fullText.includes(`<@${bank}>`);
         const isTransfer = fullText.includes("has transferred") || fullText.includes("قام بتحويل");
-        if (isTransfer && bankOk && paidAmount >= basePrice) collector.stop("DONE");
+        if (isTransfer && bankOk && paidAmount >= roleTax) collector.stop("DONE");
     });
 
     collector.on("end", async (_, reason) => {
