@@ -1187,7 +1187,12 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                 if (target._dashboardTokenHash) await db.set('maker_bot_control_' + target._dashboardTokenHash, { botId, stopped: !active, updatedAt: Date.now(), reason: active ? 'subscription_active' : 'subscription_inactive' });
                 target._premiumEntitled = Boolean(active);
                 if (active && !target.isReady()) await target.login(target._botToken);
-                else if (!active && target.isReady()) { target._dashboardBotId = botId; await target.destroy(); }
+                if (typeof target._dashboardRefreshExchangeCron === 'function') {
+                    for (const guild of target.guilds.cache.values()) {
+                        await target._dashboardRefreshExchangeCron(guild.id, !active).catch(() => {});
+                    }
+                }
+                if (!active && target.isReady()) { target._dashboardBotId = botId; await target.destroy(); }
                 return true;
             };
         }
