@@ -1,8 +1,8 @@
 const $ = (s) => document.querySelector(s);
 const views = ["login-view","chooser","server-picker","workspace"];
 let mode="normal", bots=[], selectedBot="", selectedGuild=null, currentPage="overview", workspaceData=null, isDeveloper=false;
-const titles={overview:"نظرة عامة",tickets:"نظام التكتات",applications:"التقديمات",auto:"الأنظمة التلقائية",appearance:"المظهر والرسائل",permissions:"الصلاحيات",logs:"السجلات"};
-const subtitles={overview:"ملخص إعدادات البوت والسيرفر المحدد.",tickets:"إعداد قنوات التكتات ونشر لوحات التذاكر.",applications:"ضبط أسئلة التقديم ونشر نموذج الاستقبال.",auto:"إعداد أنظمة التنبيه والريست التلقائي.",appearance:"تعديل لون ورسائل وصورة البوت.",permissions:"تحديد رتب مسؤولي أقسام البوت.",logs:"مراجعة تغييرات الداشبورد ورسائل اللوق."};
+const titles={overview:"نظرة عامة",stores:"المتاجر",auction:"المزاد",orders:"الطلبات",shortcuts:"الاختصارات",pricing:"الأسعار",rules:"القوانين",tickets:"نظام التكتات",applications:"التقديمات",auto:"الأنظمة التلقائية",appearance:"المظهر والرسائل",permissions:"الصلاحيات",logs:"السجلات"};
+const subtitles={overview:"ملخص إعدادات البوت والسيرفر المحدد.",stores:"إعداد مسؤول المتاجر وخدمات المتجر المرتبطة بأوامر البوت.",auction:"إعداد المزاد العام والخاص وربط القنوات والرتب.",orders:"إعداد الطلبات ومسؤوليها وأسعار خدماتها.",shortcuts:"تخصيص الاختصارات الأحد عشر التي تستخدمها أوامر البوت.",pricing:"إدارة أسعار المنشنات والخدمات المسجلة في QuickDB.",rules:"تعديل قوانين السيرفر وقوانين المزاد.",tickets:"إعداد قنوات التكتات ونشر لوحات التذاكر.",applications:"ضبط أسئلة التقديم ونشر نموذج الاستقبال.",auto:"إعداد أنظمة التنبيه والريست التلقائي.",appearance:"تعديل لون ورسائل وصورة البوت.",permissions:"تحديد رتب مسؤولي أقسام البوت.",logs:"مراجعة تغييرات الداشبورد ورسائل اللوق."};
 const fieldGroups={
  tickets:[
   ["logsRoom","روم سجلات المتاجر","channel"],["orderRoom","روم الطلبات","channel"],["auctionRoom","روم المزادات","channel"],
@@ -16,6 +16,42 @@ const fieldGroups={
  applications:[
   ["applyRoom","روم القبول","channel"],["applyType","طريقة إرسال القبول","choice:applyType"],["applyRoles","الرتب التلقائية للمقبولين","roles"],
   ["applyAdmin","روم استقبال التقديمات للإدارة","channel"],["applyTicketCategory","كاتيغوري تكت التقديم","category"],["applyDisabled","تعطيل استقبال التقديمات","boolean"],["applyQuestions","أسئلة التقديم (حتى 5)","questions"]
+ ],
+ stores:[
+  ["shopAdmin","رتبة مسؤول المتاجر","role"],["highStaff","رتبة الإدارة العليا","role"],
+  ["vacationEnabled","تفعيل نظام إجازة المتاجر","boolean"],["disableAuto","تعطيل الأنظمة التلقائية للمتاجر","boolean"],
+  ["activateShopPrice","سعر تفعيل المتجر","money"],["sellShopPrice","سعر بيع المتجر","money"],["autoMessagePrice","سعر الرسائل التلقائية","money"]
+ ],
+ auction:[
+  ["auctionAdmin","رتبة مسؤول المزاد","role"],["auctionRoom","روم المزاد","channel"],
+  ["auctionMentionRole","رتبة منشن المزاد","role"],["publicAuctionCategory","كاتيغوري المزاد العام","category"],
+  ["privateAuctionCategory","كاتيغوري المزاد الخاص","category"],["auctionInfo","معلومات المزاد","textarea"],
+  ["middlemanLink","رابط الوسيط","url"]
+ ],
+ orders:[
+  ["orderAdmin","رتبة مسؤول الطلبات","role"],["orderRoom","روم الطلبات","channel"],
+  ["orderMentionRole","رتبة منشن الطلبات","role"],["orderEveryPrice","سعر منشن Everyone للطلبات","money"],
+  ["orderHerePrice","سعر منشن Here للطلبات","money"],["orderBasePrice","سعر الطلب الأساسي","money"]
+ ],
+ shortcuts:[
+  ["mention","اختصار المنشنات","text"],["warning","اختصار التحذير","text"],
+  ["delete","اختصار الحذف","text"],["tax","اختصار الضريبة","text"],
+  ["call","اختصار النداء","text"],["ping","اختصار البنق","text"],
+  ["setShopOwner","اختصار تحديد صاحب المتجر","text"],["addMentions","اختصار إضافة منشنات","text"],
+  ["setMentions","اختصار تحديد المنشنات","text"],["addShopData","اختصار إضافة متجر","text"],
+  ["createShop","اختصار إنشاء متجر","text"]
+ ],
+ pricing:[
+  ["everyonePrice","سعر منشن Everyone","money"],["herePrice","سعر منشن Here","money"],
+  ["shopMentionPrice","سعر منشن المتجر","money"],["orderEveryonePrice","سعر Everyone للطلبات","money"],
+  ["orderHerePrice","سعر Here للطلبات","money"],["orderBasePrice","سعر الطلب","money"],
+  ["auctionEveryonePrice","سعر Everyone للمزاد","money"],["auctionHerePrice","سعر Here للمزاد","money"],
+  ["auctionBidPrice","سعر منشن المزاد","money"],["changeNamePrice","سعر تغيير الاسم","money"],
+  ["changeOwnerPrice","سعر تغيير المالك","money"],["rolePrice","سعر الرتب المخصصة","money"]
+ ],
+ rules:[
+  ["serverRules","قوانين السيرفر (افصل كل قانون بفاصلة)","words"],
+  ["rulesImage","رابط صورة القوانين","url"],["auctionRules","قوانين المزاد (افصل كل قانون بفاصلة)","words"]
  ],
  auto:[
   ["resetDays","مدة إعادة ضبط المنشن بالأيام","number"],["resetRoom","روم إعلان إعادة الضبط","channel"],["resetMessage","رسالة إعادة الضبط","textarea"],["resetType","فلترة نوع المتجر (اختياري)","text"],
@@ -53,7 +89,7 @@ function makeField(field,label,type,value){const wrap=node("label","setting-fiel
  else if(type==="questions"){input=node("div","question-fields");for(let n=1;n<=5;n++){const q=node("textarea","field-control question-input");q.rows=2;q.maxLength=200;q.placeholder="السؤال "+n;q.dataset.question=String(n);q.value=value?.[n]||"";input.append(q);}wrap.append(input);return wrap;}
  else if(type==="words"){input=node("textarea","field-control");input.rows=3;input.placeholder="كلمة 1, كلمة 2";input.value=Array.isArray(value)?value.join(", "):"";}
  else if(type==="textarea"){input=node("textarea","field-control");input.rows=3;input.value=value||"";}
- else {input=node("input","field-control");input.type=type==="number"?"number":"text";input.value=value??"";if(type==="color")input.placeholder="#5865F2";if(type==="url")input.placeholder="https://...";}
+ else {input=node("input","field-control");input.type=(type==="number"||type==="money")?"number":"text";input.value=value??"";if(type==="money"){input.min="0";input.max="1000000000";input.step="1";}if(type==="color")input.placeholder="#5865F2";if(type==="url")input.placeholder="https://...";}
  input.dataset.field=field;wrap.append(input);return wrap;}
 function collectValues(section){const values={};(fieldGroups[section]||[]).forEach(([field,,type])=>{if(type==="questions"){const q={};$("#page-content").querySelectorAll("[data-question]").forEach(el=>{if(el.value.trim())q[el.dataset.question]=el.value.trim();});values[field]=q;return;}const el=$("#page-content").querySelector('[data-field="'+field+'"]');if(!el)return;if(type==="boolean")values[field]=el.checked;else if(type==="roles")values[field]=[...el.selectedOptions].map(o=>o.value);else if(type==="words")values[field]=el.value.split(",").map(x=>x.trim()).filter(Boolean);else values[field]=el.value.trim();});return values;}
 function renderSettings(root,section){const panel=node("div","dashboard-panel settings-panel");const heading=node("div","panel-heading");heading.append(node("h3","",titles[section]),node("p","","يتم حفظ الإعدادات مباشرة في قاعدة بيانات البوت."));panel.append(heading);const grid=node("div","settings-grid");(fieldGroups[section]||[]).forEach(([field,label,type])=>grid.append(makeField(field,label,type,workspaceData.config?.[section]?.[field])));panel.append(grid);const actions=node("div","form-actions");const save=node("button","primary-action","حفظ الإعدادات");save.type="button";save.addEventListener("click",()=>saveSection(section,save));actions.append(save);panel.append(actions);root.append(panel);if(section==="tickets"){renderPanelSender(root,"tickets");renderPanelSender(root,"support");}if(section==="applications")renderPanelSender(root,"application");if(section==="auto"){const extra=node("div","notice","إعداد الريست يستخدم المجدول الموجود في البوت. لن يبدأ قبل تحديد المدة والروم والرسالة.");root.append(extra);}}
