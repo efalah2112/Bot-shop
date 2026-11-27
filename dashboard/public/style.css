@@ -28,3 +28,5 @@
 @media(max-width:720px){.settings-grid{grid-template-columns:1fr}.log-row{grid-template-columns:1fr}.log-row small{grid-column:auto}}
 
 .panel-message-link{display:inline-block;margin-top:12px;color:#a5b4fc;font-weight:700;text-decoration:none}.panel-message-link:hover{text-decoration:underline}
+
+.nav-caption{color:#687797;font-size:9px;font-weight:700;padding:14px 10px 7px;margin-top:4px;border-top:1px solid var(--line)}.sidebar{max-height:calc(100vh - 36px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#465477 transparent}@media(max-width:850px){.sidebar{max-height:none;overflow:visible}.nav-caption{grid-column:1/-1}}
