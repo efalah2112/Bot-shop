@@ -1099,7 +1099,12 @@ async function handleDMMessage(message, client) {
 }
 
 async function sendMakerError(client, title, error) {
-    console.error(`[Maker] ${title}:`, error);
+    console.error(`[Bot Error] ${title}:`, error);
+    if (client) {
+        client._makerLogs = Array.isArray(client._makerLogs) ? client._makerLogs : [];
+        client._makerLogs.unshift({ at: Date.now(), title: String(title || "Bot Error").slice(0, 100), message: String(error?.message || error || "Unknown error").slice(0, 1000), stack: String(error?.stack || "").slice(0, 3000) });
+        client._makerLogs = client._makerLogs.slice(0, 50);
+    }
 }
 
 async function migrateLegacyPremiumTokens(db) {
