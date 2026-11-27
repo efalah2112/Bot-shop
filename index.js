@@ -60,7 +60,7 @@ if (generalToken && !config.tokens.includes(generalToken)) {
 
 const botTokens = config.tokens.filter((t) => t && t.trim() !== "");
 
-const bots = botTokens.map((token, index) => {
+function createBotClient(token, index) {
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers,
@@ -2478,7 +2478,7 @@ const bots = botTokens.map((token, index) => {
             console.log(`✅ Maker + Premium commands registered for ${client.user.tag}`);
             
             // 3. تفعيل نظام الميكر
-            maker.setupMakerSystem(client, bots, db, config, fs);
+            maker.setupMakerSystem(client, bots, db, config, fs, createBotClient);
             console.log(chalk.green(`✅ Maker + Premium system activated for ${client.user.tag}`));
         } else {
             // ===== باقي البوتات: تسجل أوامر المتاجر فقط =====
@@ -2595,7 +2595,9 @@ const bots = botTokens.map((token, index) => {
   });
 
   return client;
-});
+}
+
+const bots = botTokens.map((token, index) => createBotClient(token, index));
 
 // ========== WEB DASHBOARD ==========
 require("./dashboard")(app, { bots, db, config });
