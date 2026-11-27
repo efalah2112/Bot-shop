@@ -18,10 +18,8 @@ const fieldGroups={
   ["applyAdmin","روم استقبال التقديمات للإدارة","channel"],["applyTicketCategory","كاتيغوري تكت التقديم","category"],["applyDisabled","تعطيل استقبال التقديمات","boolean"],["applyQuestions","أسئلة التقديم (حتى 5)","questions"]
  ],
  stores:[
-  ["shopAdmin","رتبة مسؤول المتاجر","role"],["highStaff","رتبة الإدارة العليا","role"],
-  ["shopVacationPrice","سعر إجازة المتجر","money"],["disableAutoPrice","سعر تعطيل النظام التلقائي","money"],
-  ["activateShopPrice","سعر تفعيل المتجر","money"],["sellShopPrice","سعر بيع المتجر","money"],["autoMessagePrice","سعر الرسائل التلقائية","money"]
- ],
+  ["shopAdmin","رتبة مسؤول المتاجر","role"],["highStaff","رتبة الإدارة العليا","role"]
+  ],
  auction:[
   ["auctionAdmin","رتبة مسؤول المزاد","role"],["auctionRoom","روم المزاد","channel"],
   ["auctionMentionRole","رتبة منشن المزاد","role"],["publicAuctionCategory","كاتيغوري المزاد العام","category"],
@@ -30,9 +28,8 @@ const fieldGroups={
  ],
  orders:[
   ["orderAdmin","رتبة مسؤول الطلبات","role"],["orderRoom","روم الطلبات","channel"],
-  ["orderMentionRole","رتبة منشن الطلبات","role"],["orderEveryPrice","سعر منشن Everyone للطلبات","money"],
-  ["orderHerePrice","سعر منشن Here للطلبات","money"],["orderBasePrice","سعر الطلب الأساسي","money"]
- ],
+  ["orderMentionRole","رتبة منشن الطلبات","role"]
+  ],
  shortcuts:[
   ["mention","اختصار المنشنات","text"],["warning","اختصار التحذير","text"],
   ["delete","اختصار الحذف","text"],["tax","اختصار الضريبة","text"],
@@ -42,17 +39,20 @@ const fieldGroups={
   ["createShop","اختصار إنشاء متجر","text"]
  ],
  pricing:[
-  ["everyonePrice","سعر منشن Everyone","money"],["herePrice","سعر منشن Here","money"],
-  ["shopMentionPrice","سعر منشن المتجر","money"],["orderEveryonePrice","سعر Everyone للطلبات","money"],
-  ["orderHerePrice","سعر Here للطلبات","money"],["orderBasePrice","سعر الطلب","money"],
-  ["auctionEveryonePrice","سعر Everyone للمزاد","money"],["auctionHerePrice","سعر Here للمزاد","money"],
-  ["auctionBidPrice","سعر منشن المزاد","money"],["changeNamePrice","سعر تغيير الاسم","money"],
-  ["changeOwnerPrice","سعر تغيير المالك","money"],["rolePrice","سعر الرتب المخصصة","money"]
- ],
+  ["everyonePrice","سعر منشن Everyone للمتاجر","money"],["herePrice","سعر منشن Here للمتاجر","money"],
+  ["shopMentionPrice","سعر منشن المتجر","money"],
+  ["orderEveryonePrice","سعر Everyone للطلبات","money"],["orderHerePrice","سعر Here للطلبات","money"],["orderBasePrice","سعر الطلب (رتبة)","money"],
+  ["auctionEveryonePrice","سعر Everyone للمزاد","money"],["auctionHerePrice","سعر Here للمزاد","money"],["auctionBidPrice","سعر منشن المزاد (رتبة)","money"],
+  ["changePartnersPrice","سعر إضافة أو حذف شريك متجر","money"],["removeWarnPrice","سعر إزالة تحذير المتجر","money"],
+  ["changeNamePrice","سعر تغيير اسم المتجر","money"],["changeOwnerPrice","سعر تغيير مالك المتجر","money"],
+  ["autoMessagePrice","سعر النشر التلقائي للمتاجر","money"],["changeShapePrice","سعر تغيير شكل المتجر","money"],
+  ["changeTypePrice","سعر تغيير نوع المتجر","money"],["shopVacationPrice","سعر إجازة المتجر","money"],
+  ["disableAutoPrice","سعر تعطيل الإرسال التلقائي","money"],["activateShopPrice","سعر تفعيل المتجر","money"],
+  ["sellShopPrice","سعر بيع المتجر","money"],["rolePrice","سعر الرتب المخصصة","money"]
+  ],
  rules:[
-  ["serverRules","قوانين السيرفر (افصل كل قانون بفاصلة)","words"],
   ["rulesImage","رابط صورة القوانين","url"],["auctionRules","قوانين المزاد (افصل كل قانون بفاصلة)","words"]
- ],
+  ],
  showcase:[["publicShowcase","السماح بعرض اسم السيرفر وعدد أعضائه في الداشبورد العام","boolean"]],
  ratings:[["ratingChannel","روم استقبال تقييمات التكتات","channel"]],
  auto:[
@@ -69,7 +69,7 @@ const fieldGroups={
  ]
 };
 function show(id){views.forEach(v=>$("#"+v).classList.toggle("hidden",v!==id));}
-async function api(url,options={}){const r=await fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(options.headers||{})},...options});const data=r.status===204?{}:await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||"حدث خطأ غير متوقع");return data;}
+async function api(url,options={}){const r=await fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(options.headers||{})},...options});const data=r.status===204?{}:await r.json().catch(()=>({}));if(!r.ok){const detail=url.includes("/dashboard/api/maker/overview")&&data.detail?" — "+data.detail:"";throw new Error((data.error||"حدث خطأ غير متوقع")+detail);}return data;}
 function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
 function avatar(src,name){return src?'<img src="'+src+'" alt="">':(name||"?").trim().slice(0,2).toUpperCase();}
 function escapeHtml(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -161,7 +161,7 @@ async function loadGuilds(){const grid=$("#guild-grid");grid.innerHTML='<div cla
 function renderGuilds(guilds,message){const grid=$("#guild-grid");grid.replaceChildren();if(!guilds.length){$("#picker-empty").classList.remove("hidden");$("#picker-empty p").textContent=message||"لا توجد سيرفرات متاحة لهذا الاختيار.";return;}$("#picker-empty").classList.add("hidden");guilds.forEach(g=>{const card=node("article","guild-card");const av=node("div","guild-avatar");av.innerHTML=avatar(g.icon,g.name);const info=node("div","guild-info");info.append(node("b","",g.name),node("small","",(g.plan?g.plan+" • ":"")+g.id));let action;if(g.status==="no_permission"){action=node("button","guild-action disabled","لا توجد صلاحية");action.disabled=true;}else if(g.status==="invite"){action=node("a","guild-action invite","أضف البوت للسيرفر ↗");const url="https://discord.com/oauth2/authorize?client_id="+encodeURIComponent(selectedBot)+"&scope=bot%20applications.commands&permissions=268561424&guild_id="+encodeURIComponent(g.id)+"&disable_guild_select=true";action.href=url;action.target="_blank";action.rel="noopener";}else{action=node("button","guild-action","إدارة السيرفر ←");action.addEventListener("click",()=>openGuild(g));}info.append(action);card.append(av,info);grid.append(card);});}
 async function openGuild(g){try{const botId=g.botId||selectedBot;const checked=await api("/dashboard/api/access?guildId="+encodeURIComponent(g.id)+"&mode="+mode+"&botId="+encodeURIComponent(botId));selectedGuild={...g,...checked.guild,botId};workspaceData=null;await loadWorkspace();show("workspace");renderPage("overview");}catch(e){alert(e.message);}}
 async function loadWorkspace(){const q=new URLSearchParams({guildId:selectedGuild.id,botId:selectedGuild.botId,mode});workspaceData=await api("/dashboard/api/workspace?"+q.toString());}
-function renderPage(page){currentPage=page;const pageTitle=page==="tickets"&&mode==="premium"?"التكتات المتقدمة":page==="applications"&&mode==="premium"?"تقديم الإدارة":titles[page];$("#page-title").textContent=pageTitle;$("#crumb").textContent=pageTitle;$("#page-subtitle").textContent=page==="tickets"&&mode==="premium"?"إدارة التكتات المتقدمة المرتبطة ببوت Premium.":page==="applications"&&mode==="premium"?"إعداد نظام تقديم الإدارة وأسئلته ورتب القبول.":subtitles[page];document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const root=$("#page-content");root.replaceChildren();if(page==="overview"){renderOverview(root);return;}if(page==="logs"){renderLogs(root);return;}if(page==="commands"){renderCommands(root);return;}if(page==="ratings"){renderRatings(root);return;}if(page==="embeds"){renderEmbedComposer(root,false);return;}if(page==="premiumEmbeds"){renderEmbedComposer(root,true);return;}if(page==="identity"||page==="premiumIdentity"){renderIdentity(root);return;}if(page==="tickets"){renderTicketManager(root);return;}if(page==="privateAuction"){renderPrivateAuction(root);return;}if(page==="exchange"){renderExchange(root);return;}if(page==="promotions"){renderPromotions(root);return;}if(page==="stores"){renderStores(root);return;}if(page==="purchasableRoles"){renderPurchasableRoles(root);return;}if(page==="panels"){renderPanels(root);return;}if(page==="auction"||page==="orders"){renderOperations(root,page);return;}renderSettings(root,page);}
+function renderPage(page){currentPage=page;const pageTitle=page==="tickets"&&mode==="premium"?"التكتات المتقدمة":page==="applications"&&mode==="premium"?"تقديم الإدارة":titles[page];$("#page-title").textContent=pageTitle;$("#crumb").textContent=pageTitle;$("#page-subtitle").textContent=page==="tickets"&&mode==="premium"?"إدارة التكتات المتقدمة المرتبطة ببوت Premium.":page==="applications"&&mode==="premium"?"إعداد نظام تقديم الإدارة وأسئلته ورتب القبول.":subtitles[page];document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const root=$("#page-content");root.replaceChildren();if(page==="overview"){renderOverview(root);return;}if(page==="logs"){renderLogs(root);return;}if(page==="commands"){renderCommands(root);return;}if(page==="ratings"){renderRatings(root);return;}if(page==="embeds"){renderEmbedComposer(root,false);return;}if(page==="premiumEmbeds"){renderEmbedComposer(root,true);return;}if(page==="identity"||page==="premiumIdentity"){renderIdentity(root);return;}if(page==="tickets"){renderTicketManager(root);return;}if(page==="rules"){renderRules(root);return;}if(page==="privateAuction"){renderPrivateAuction(root);return;}if(page==="exchange"){renderExchange(root);return;}if(page==="promotions"){renderPromotions(root);return;}if(page==="stores"){renderStores(root);return;}if(page==="purchasableRoles"){renderPurchasableRoles(root);return;}if(page==="panels"){renderPanels(root);return;}if(page==="auction"||page==="orders"){renderOperations(root,page);return;}renderSettings(root,page);}
 async function loadPublicShowcase(){
  const host=$("#public-showcase");if(!host)return;
  try{const data=await api("/dashboard/api/public-stats");host.replaceChildren();
@@ -274,6 +274,56 @@ function makeField(field,label,type,value){const wrap=node("label","setting-fiel
  else {input=node("input","field-control");input.type=(type==="number"||type==="money")?"number":"text";input.value=value??"";if(type==="money"){input.min="0";input.max="1000000000";input.step="1";}if(type==="color")input.placeholder="#5865F2";if(type==="url")input.placeholder="https://...";}
  input.dataset.field=field;wrap.append(input);return wrap;}
 function collectValues(section){const values={};(fieldGroups[section]||[]).forEach(([field,,type])=>{if(type==="questions"){const q={};$("#page-content").querySelectorAll("[data-question]").forEach(el=>{if(el.value.trim())q[el.dataset.question]=el.value.trim();});values[field]=q;return;}const el=$("#page-content").querySelector('[data-field="'+field+'"]');if(!el)return;if(type==="boolean")values[field]=el.checked;else if(type==="roles")values[field]=[...el.selectedOptions].map(o=>o.value);else if(type==="words")values[field]=el.value.split(",").map(x=>x.trim()).filter(Boolean);else values[field]=el.value.trim();});return values;}
+async function renderRules(root){
+ renderSettings(root,"rules");
+ const panel=node("div","dashboard-panel rules-manager");
+ panel.append(node("h3","","إدارة قوانين السيرفر"),node("p","","أضف اسم القانون ونصه، وسيظهر كزر مستقل في بانل القوانين. الحد الأقصى 5 قوانين مثل أوامر البوت."));
+ const form=node("div","settings-grid");
+ const label=makeField("ruleLabel","اسم/عنوان القانون","text","");
+ label.querySelector("input").dataset.field="ruleLabel";
+ const content=makeField("ruleContent","نص القانون","textarea","");
+ content.querySelector("textarea").dataset.field="ruleContent";
+ const emoji=makeField("ruleEmoji","إيموجي القانون (اختياري)","text","");
+ emoji.querySelector("input").dataset.field="ruleEmoji";
+ const image=makeField("ruleImage","رابط صورة القانون HTTPS (اختياري)","url","");
+ image.querySelector("input").dataset.field="ruleImage";
+ form.append(label,content,emoji,image);panel.append(form);
+ const actions=node("div","form-actions");
+ const save=node("button","primary-action","إضافة قانون");
+ const cancel=node("button","ghost-button","إلغاء التعديل");cancel.classList.add("hidden");
+ actions.append(save,cancel);panel.append(actions);
+ const list=node("div","rules-list");panel.append(list);root.append(panel);
+ const qs=new URLSearchParams({guildId:selectedGuild.id,botId:selectedGuild.botId,mode});
+ let editingId=null;
+ const fields={label:label.querySelector("input"),content:content.querySelector("textarea"),emoji:emoji.querySelector("input"),image:image.querySelector("input")};
+ function clearForm(){editingId=null;Object.values(fields).forEach(field=>field.value="");save.textContent="إضافة قانون";cancel.classList.add("hidden");}
+ cancel.addEventListener("click",clearForm);
+ async function refresh(){
+  list.replaceChildren();
+  const data=await api("/dashboard/api/rules?"+qs.toString());
+  const rules=data.rules||[];
+  if(!rules.length)list.append(node("p","showcase-empty","ما أضفت أي قانون حتى الآن."));
+  rules.forEach((rule,index)=>{
+   const row=node("div","store-admin-row rules-row"),info=node("div","store-admin-info");
+   info.append(node("b","","#"+(index+1)+" • "+rule.label),node("small","",rule.content));
+   const edit=node("button","ghost-button","تعديل");
+   edit.addEventListener("click",()=>{editingId=rule.id;fields.label.value=rule.label||"";fields.content.value=rule.content||"";fields.emoji.value=rule.emoji||"";fields.image.value=rule.image||"";save.textContent="حفظ التعديل";cancel.classList.remove("hidden");fields.label.focus();});
+   const del=node("button","ghost-button","حذف");
+   del.addEventListener("click",async()=>{if(!confirm("تأكيد حذف هذا القانون؟"))return;del.disabled=true;try{await api("/dashboard/api/rules",{method:"POST",body:JSON.stringify({guildId:selectedGuild.id,botId:selectedGuild.botId,mode,action:"delete",id:rule.id})});if(editingId===rule.id)clearForm();notify("تم حذف القانون.");await refresh();}catch(e){notify(e.message,true);}finally{del.disabled=false;}});
+   row.append(info,edit,del);list.append(row);
+  });
+  save.disabled=rules.length>=5&&!editingId;
+  if(!editingId&&rules.length>=5)save.textContent="اكتملت 5 قوانين";
+ }
+ save.addEventListener("click",async()=>{
+  const payload={guildId:selectedGuild.id,botId:selectedGuild.botId,mode,action:editingId?"update":"add",id:editingId,label:fields.label.value,content:fields.content.value,emoji:fields.emoji.value,image:fields.image.value};
+  save.disabled=true;
+  try{await api("/dashboard/api/rules",{method:"POST",body:JSON.stringify(payload)});notify(editingId?"تم تحديث القانون.":"تمت إضافة القانون.");clearForm();await refresh();}
+  catch(e){notify(e.message,true);}
+  finally{save.disabled=false;}
+ });
+ try{await refresh();}catch(e){list.append(node("p","showcase-empty",e.message));}
+}
 function renderSettings(root,section){const panel=node("div","dashboard-panel settings-panel");const heading=node("div","panel-heading");heading.append(node("h3","",titles[section]),node("p","","يتم حفظ الإعدادات مباشرة في قاعدة بيانات البوت."));panel.append(heading);const grid=node("div","settings-grid");(fieldGroups[section]||[]).forEach(([field,label,type])=>grid.append(makeField(field,label,type,workspaceData.config?.[section]?.[field])));panel.append(grid);const actions=node("div","form-actions");const save=node("button","primary-action","حفظ الإعدادات");save.type="button";save.addEventListener("click",()=>saveSection(section,save));actions.append(save);panel.append(actions);root.append(panel);if(section==="tickets"){renderPanelSender(root,"tickets");renderPanelSender(root,"support");}if(section==="applications")renderPanelSender(root,"application");if(section==="auto"){const extra=node("div","notice","إعداد الريست يستخدم المجدول الموجود في البوت. لن يبدأ قبل تحديد المدة والروم والرسالة.");root.append(extra);}}
 async function saveSection(section,button){button.disabled=true;button.textContent="جارٍ الحفظ...";try{const values=collectValues(section);await api("/dashboard/api/workspace",{method:"POST",body:JSON.stringify({guildId:selectedGuild.id,botId:selectedGuild.botId,mode,section,values})});await loadWorkspace();notify("تم حفظ الإعدادات وربطها بقاعدة بيانات البوت.");renderPage(section);}catch(e){notify(e.message,true);}finally{button.disabled=false;button.textContent="حفظ الإعدادات";}}
 function renderPanelSender(root,type){const panel=node("div","dashboard-panel panel-sender");panel.append(node("h3","",type==="tickets"?"إرسال لوحة التكتات":type==="support"?"إرسال لوحة الدعم":"نشر لوحة التقديم"),node("p","","سيتم إرسال رسالة فعلية في القناة المحددة بأزرار مرتبطة بمعالجات البوت."));const form=node("div","settings-grid");const channelField=makeField("panelChannel","روم الإرسال","channel","");channelField.querySelector("select").dataset.field="panelChannel";form.append(channelField);let typeSelect=null;if(type==="application"){const wrap=node("label","setting-field");wrap.append(node("span","field-label","نوع التقديم"));typeSelect=node("select","field-control");[["questions","أسئلة"],["ticket","تكت"]].forEach(([v,l])=>{const o=node("option","",l);o.value=v;typeSelect.append(o);});wrap.append(typeSelect);form.append(wrap);}const titleField=makeField("panelTitle","عنوان الرسالة","text",type==="tickets"?"قسم التكتات والمبيعات":type==="support"?"مركز الدعم":"التقديم");titleField.querySelector("input").dataset.field="panelTitle";form.append(titleField);const descField=makeField("panelDescription","وصف الرسالة","textarea",type==="tickets"?"اختر الخدمة المناسبة من الأزرار بالأسفل.":type==="support"?"اختر نوع الدعم الذي تحتاجه.":"اضغط الزر أدناه للتقديم.");descField.querySelector("textarea").dataset.field="panelDescription";form.append(descField);panel.append(form);const send=node("button","primary-action",type==="tickets"?"إرسال لوحة التكتات":type==="support"?"إرسال لوحة الدعم":"نشر لوحة التقديم");send.addEventListener("click",async()=>{const channelId=panel.querySelector('[data-field="panelChannel"]').value;if(!channelId){notify("حدد روم الإرسال أولاً.",true);return;}send.disabled=true;send.textContent="جارٍ الإرسال...";try{const result=await api("/dashboard/api/panels",{method:"POST",body:JSON.stringify({guildId:selectedGuild.id,botId:selectedGuild.botId,mode,type,channelId,title:panel.querySelector('[data-field="panelTitle"]').value,description:panel.querySelector('[data-field="panelDescription"]').value,applicationType:typeSelect?.value})});notify("تم إرسال اللوحة بنجاح.");if(result.url){const link=node("a","panel-message-link","فتح الرسالة المنشورة في ديسكورد ↗");link.href=result.url;link.target="_blank";link.rel="noopener";panel.append(link);}await loadWorkspace();}catch(e){notify(e.message,true);}finally{send.disabled=false;send.textContent=type==="tickets"?"إرسال لوحة التكتات":type==="support"?"إرسال لوحة الدعم":"نشر لوحة التقديم";}});panel.append(send);root.append(panel);}
