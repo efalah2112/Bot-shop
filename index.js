@@ -84,14 +84,11 @@ const makerToken = config.makerToken || process.env.BOT_TOKEN_MAKER || "";
 const generalToken = config.generalToken || process.env.BOT_TOKEN_GENERAL || "";
 
 // إضافة التوكنات الرئيسية إلى قائمة tokens إن لم تكن موجودة
-if (makerToken && !config.tokens.includes(makerToken)) {
-    config.tokens.push(makerToken);
-}
 if (generalToken && !config.tokens.includes(generalToken)) {
     config.tokens.push(generalToken);
 }
 
-const botTokens = config.tokens.filter((t) => t && t.trim() !== "");
+const botTokens = config.tokens.filter((t) => t && t.trim() !== "" && t !== makerToken);
 
 function createBotClient(token, index) {
   const client = new Client({
@@ -2663,6 +2660,12 @@ function createBotClient(token, index) {
 }
 
 const bots = botTokens.map((token, index) => createBotClient(token, index));
+// Keep the Maker controller on its dedicated BOT_TOKEN_MAKER credential.
+// It remains in the runtime registry for Maker/Premium APIs, but is not mixed
+// into the ordinary BOT_TOKENS pool or exposed as a normal customer bot.
+if (makerToken && !bots.some(client => client._botToken === makerToken)) {
+  bots.push(createBotClient(makerToken, bots.length));
+}
 
 // ========== WEB DASHBOARD ==========
 require("./dashboard")(app, { bots, db, config });
