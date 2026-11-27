@@ -1196,7 +1196,8 @@ function setupDashboard(app, { bots, db }) {
           rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("buy_shop").setLabel("شراء متجر").setStyle(ButtonStyle.Secondary).setDisabled(!shopCat || !shopAdmin), new ButtonBuilder().setCustomId("ticket-auction").setLabel("تكت مزاد").setStyle(ButtonStyle.Secondary).setDisabled(!auctionCat || !auctionAdmin), new ButtonBuilder().setCustomId("ticket-order").setLabel("تكت طلبات").setStyle(ButtonStyle.Secondary).setDisabled(!orderCat || !orderAdmin), new ButtonBuilder().setCustomId("ticket-roles").setLabel("شراء رتبة").setStyle(ButtonStyle.Secondary).setDisabled(!rolesCat || !rolesAdmin || !Array.isArray(buyRoles) || !buyRoles.length)));
           rows.forEach(row => container.addActionRowComponents(row));
         }
-        const message = await channel.send({ components: [container], flags: 32768 });
+        const message = await channel.send({ components: [container], flags: 32768,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
         await audit(access.guildId, req.session.user, "panels", [type + ":" + message.id]);
         return json(res, 200, { sent: true, channelId: channel.id, messageId: message.id, url: message.url });
       }
