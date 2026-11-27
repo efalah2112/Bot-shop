@@ -314,7 +314,9 @@ function setupDashboard(app, { bots, db }) {
       const subscriptions = premiumRecords.map(record => ({ userId: String(record.userId || ""), botId: String(record.botId || ""), guildId: String(record.guildId || ""), plan: String(record.planLabel || record.plan || "Premium"), active: Boolean(record.active), startDate: Number(record.startDate || 0), endDate: Number(record.endDate || 0), status: record.active && Number(record.endDate) > Date.now() ? "active" : Number(record.endDate) <= Date.now() ? "expired" : "inactive", renewalCount: Number(record.renewalCount || 0), price: Number(record.price || 0) }));
       const settings = await db.get("premium_settings") || null;
       const pendingCount = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_")).length;
-      json(res, 200, { stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY) });
+      const pendingRequests = (rows || []).filter(row => String(row.id || "").startsWith("premium_temp_") && row.value).map(row => ({ userId:String(row.value.userId || ""), plan:String(row.value.planLabel || row.value.plan || ""), price:Number(row.value.price || 0), botId:String(row.value.botId || ""), guildId:String(row.value.guildId || ""), channelId:String(row.value.channelId || ""), timestamp:Number(row.value.timestamp || 0), tokenStored:Boolean(row.value.botTokenEncrypted) }));
+      const logs = bots.flatMap(client => (client._makerLogs || []).map(log => ({ ...log, botId:client._dashboardBotId || client.user?.id || null, botName:client.user?.username || "بوت غير متصل" }))).sort((a,b)=>b.at-a.at).slice(0,50);
+      json(res, 200, { stats: { totalBots: botList.length, readyBots: botList.filter(bot => bot.ready).length, totalGuilds: botList.reduce((sum, bot) => sum + bot.guildCount, 0), totalSubscriptions: subscriptions.length, activeSubscriptions: subscriptions.filter(item => item.status === "active").length, pendingPremiumRequests: pendingCount }, bots: botList, subscriptions: subscriptions.sort((a, b) => b.endDate - a.endDate), pendingRequests, logs, storedTokenCount: tokenVault.countTokens(), premiumSettings: settings ? { guildId: settings.guildId || null, bankId: settings.bankId || null, logChannelId: settings.logChannelId || null, premiumRoleId: settings.premiumRoleId || null, notificationChannelId: settings.notificationChannelId || null, ticketCategoryId: settings.ticketCategoryId || null, priceMonthly: Number(settings.priceMonthly || 0), price3Months: Number(settings.price3Months || 0), setupDate: Number(settings.setupDate || 0) } : null, tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY) });
     } catch (error) { console.error("[Maker dashboard overview]", error); json(res, 500, { error: "تعذر تحميل بيانات الميكر." }); }
   });
 
@@ -348,6 +350,17 @@ function setupDashboard(app, { bots, db }) {
     } catch (error) { console.error("[Maker premium extend]", error); json(res, 500, { error: "تعذر تمديد الاشتراك." }); }
   });
 
+  app.post("/dashboard/api/maker/premium/:userId/transfer", requireUser, requireMaker, async (req, res) => {
+    try {
+      const userId = String(req.params.userId || ""), newOwnerId = String(req.body?.newOwnerId || "");
+      if (!snowflake(userId) || !snowflake(newOwnerId) || userId === newOwnerId) return json(res, 400, { error: "معرّف المالك الجديد غير صالح." });
+      const oldKey = "premium_user_" + userId, record = await db.get(oldKey);
+      if (!record) return json(res, 404, { error: "الاشتراك غير موجود." });
+      const makerClient = getBot(maker.MAKER_BOT_ID); if (makerClient?.users?.fetch) await makerClient.users.fetch(newOwnerId);
+      await db.delete(oldKey); record.userId = newOwnerId; record.dashboardOwnerId = newOwnerId; await db.set("premium_user_" + newOwnerId, record);
+      json(res, 200, { transferred: true, userId: newOwnerId });
+    } catch (error) { console.error("[Maker premium transfer]", error.message); json(res, 400, { error: "تعذر نقل الملكية؛ تحقق من آيدي المستخدم." }); }
+  });
   app.post("/dashboard/api/maker/premium/:userId/status", requireUser, requireMaker, async (req, res) => {
     try {
       const userId = String(req.params.userId || ""), active = req.body?.active;
