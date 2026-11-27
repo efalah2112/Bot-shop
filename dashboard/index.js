@@ -68,7 +68,11 @@ function setupDashboard(app, { bots, db }) {
   const clientSecret = process.env.DASHBOARD_CLIENT_SECRET;
   const redirectUri = process.env.DASHBOARD_REDIRECT_URI;
   const sessionSecret = process.env.DASHBOARD_SESSION_SECRET;
-  const developerIds = new Set([maker.MAKER_OWNER_ID, ...(process.env.DASHBOARD_DEVELOPER_IDS || "").split(",").map(x => x.trim()).filter(Boolean)]);
+  const envDeveloperIds = new Set((process.env.DASHBOARD_DEVELOPER_IDS || "").split(",").map(x => x.trim()).filter(Boolean));
+  const developerIds = new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds]);
+  const developerIdsReady = db.get("dashboard_developer_ids").then(ids => {
+    if (Array.isArray(ids)) ids.filter(id => typeof id === "string" && /^\\d{17,20}$/.test(id)).forEach(id => developerIds.add(id));
+  }).catch(error => console.error("[Dashboard developer access load]", error.message));
 
   if (!sessionSecret) console.warn("[Dashboard] Set DASHBOARD_SESSION_SECRET to enable secure sessions.");
   app.set("trust proxy", 1);
@@ -150,7 +154,7 @@ function setupDashboard(app, { bots, db }) {
   };
   const requireUser = (req, res, next) => {
     if (!req.session.user || !req.session.accessToken) return json(res, 401, { error: "يرجى تسجيل الدخول أولاً." });
-    next();
+    developerIdsReady.then(() => next()).catch(() => json(res, 503, { error: "تعذر تحميل صلاحيات الداشبورد." }));
   };
   const discordFetch = async (url, token) => {
     const response = await fetch(url, { headers: { Authorization: "Bearer " + token } });
@@ -213,6 +217,34 @@ function setupDashboard(app, { bots, db }) {
     if (!req.session.user || !isDeveloper(req.session.user.id)) return json(res, 403, { error: "هذا القسم متاح للمبرمج فقط." });
     next();
   };
+  const requireMakerOwner = (req, res, next) => {
+    if (!req.session.user || req.session.user.id !== maker.MAKER_OWNER_ID) return json(res, 403, { error: "إدارة صلاحيات الميكر متاحة للمالك الأساسي فقط." });
+    next();
+  };
+  app.get("/dashboard/api/maker/developers", requireUser, requireMakerOwner, async (_req, res) => {
+    const stored = await db.get("dashboard_developer_ids") || [];
+    json(res, 200, { developers: [...new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds, ...(Array.isArray(stored) ? stored : [])])] });
+  });
+  app.post("/dashboard/api/maker/developers", requireUser, requireMakerOwner, async (req, res) => {
+    const userId = String(req.body?.userId || "");
+    if (!/^\\d{17,20}$/.test(userId)) return json(res, 400, { error: "آيدي المستخدم غير صالح." });
+    if (developerIds.has(userId)) return json(res, 409, { error: "هذا المستخدم لديه صلاحية بالفعل." });
+    const stored = await db.get("dashboard_developer_ids") || [];
+    const next = [...new Set([...(Array.isArray(stored) ? stored : []), userId])];
+    await db.set("dashboard_developer_ids", next);
+    developerIds.add(userId);
+    json(res, 200, { added: true, developers: [...new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds, ...next])] });
+  });
+  app.delete("/dashboard/api/maker/developers/:userId", requireUser, requireMakerOwner, async (req, res) => {
+    const userId = String(req.params.userId || "");
+    if (!/^\\d{17,20}$/.test(userId) || userId === maker.MAKER_OWNER_ID) return json(res, 400, { error: "لا يمكن إزالة هذا المستخدم." });
+    if (envDeveloperIds.has(userId)) return json(res, 409, { error: "هذه الصلاحية مضبوطة من متغيرات الاستضافة؛ احذفها من DASHBOARD_DEVELOPER_IDS." });
+    const stored = await db.get("dashboard_developer_ids") || [];
+    const next = (Array.isArray(stored) ? stored : []).filter(id => id !== userId);
+    await db.set("dashboard_developer_ids", next);
+    developerIds.delete(userId);
+    json(res, 200, { removed: true, developers: [...new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds, ...next])] });
+  });
 
   app.get("/dashboard/api/support", requireUser, async (req, res) => {
     try {
@@ -444,6 +476,7 @@ function setupDashboard(app, { bots, db }) {
   app.get("/dashboard/api/me", async (req, res) => {
     if (!req.session.user) return json(res, 200, { authenticated: false });
     try {
+      await developerIdsReady;
       const userId = req.session.user.id;
       const records = await getAllPremiumRecords();
       const premiumAvailable = records.some(record =>
