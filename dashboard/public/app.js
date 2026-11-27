@@ -84,21 +84,21 @@ async function renderPromotions(root){const q=new URLSearchParams({guildId:selec
 async function renderMakerConsole(root){
  const panel=node("div","dashboard-panel maker-item");
  panel.append(node("h3","","سجل كونسول الهوست"),node("p","","يعرض مخرجات عملية Node.js التي تشغّل البوت والداشبورد، مع إخفاء أنماط توكنات Discord. لا توجد أوامر Shell أو تنفيذ أوامر عن بُعد من هذه الصفحة."));
- const refresh=node("button","ghost-button","تحديث السجل");panel.append(refresh);root.append(panel);
+ const refresh=node("button","ghost-button","تحديث السجل");const hostLink=node("a","ghost-button","فتح لوحة Wispbyte ↗");hostLink.href="https://wispbyte.com/client";hostLink.target="_blank";hostLink.rel="noopener noreferrer";panel.append(refresh,hostLink);root.append(panel);
  const list=node("div","dashboard-panel maker-item");root.append(list);
  async function load(){list.replaceChildren(node("h3","","آخر 300 سطر"));const data=await api("/dashboard/api/maker/console");(data.logs||[]).forEach(entry=>{const row=node("div","log-row");row.append(node("b","",String(entry.level||"log").toUpperCase()),node("span","",new Date(entry.at).toLocaleString("ar-SA")),node("small","",entry.message));list.append(row);});if(!(data.logs||[]).length)list.append(node("p","","لا توجد مخرجات محفوظة بعد."));}
  refresh.addEventListener("click",()=>load().catch(e=>notify(e.message,true)));await load();
 }
 async function renderMakerTrials(root){
  const panel=node("div","dashboard-panel maker-item");
- panel.append(node("h3","","تشغيل بوت Premium مجاني لمدة محددة"),node("p","","هذه تجربة مؤقتة وليست اشتراكاً مدفوعاً. يُحفظ التوكن مشفراً، ويُوقف البوت تلقائياً عند انتهاء المدة. لا تشارك التوكن مع أي شخص."));
+ panel.append(node("h3","","تفعيل Premium مؤقت لبوت مسجل"),node("p","","هذه تجربة مؤقتة لبوت موجود بالفعل في عملية التشغيل الحالية؛ لا تضيف بوتاً جديداً إلى استضافة Wispbyte. ينتهي التفعيل تلقائياً ويُوقف البوت عند انتهاء المدة. لا تشارك التوكن مع أي شخص."));
  const grid=node("div","settings-grid");
  const token=node("input","field-control");token.type="password";token.autocomplete="new-password";token.placeholder="Bot Token";
  const guild=node("input","field-control");guild.className="field-control";guild.placeholder="آيدي السيرفر الذي يوجد فيه البوت";
  const owner=node("input","field-control");owner.placeholder="آيدي راعي البوت";
  const duration=node("select","field-control");[[1,"ساعة واحدة"],[6,"6 ساعات"],[12,"12 ساعة"],[24,"يوم واحد"],[72,"3 أيام"],[168,"7 أيام"]].forEach(([v,l])=>duration.append(new Option(l,String(v))));
  grid.append(token,guild,owner,duration);panel.append(grid);
- const create=node("button","primary-action","تشغيل Premium التجريبي");panel.append(create);root.append(panel);
+ const create=node("button","primary-action","تفعيل Premium مؤقت");panel.append(create);root.append(panel);
  create.addEventListener("click",async()=>{if(!token.value.trim()||!guild.value.trim()||!owner.value.trim()){notify("أكمل التوكن وآيدي السيرفر وآيدي المالك.",true);return;}create.disabled=true;try{const result=await api("/dashboard/api/maker/trials",{method:"POST",body:JSON.stringify({token:token.value.trim(),guildId:guild.value.trim(),ownerId:owner.value.trim(),durationHours:Number(duration.value)})});token.value="";notify("تم إنشاء التشغيل التجريبي للبوت "+result.trial.botName);await refreshMaker();}catch(e){notify(e.message,true);}finally{create.disabled=false;}});
  const list=node("div","dashboard-panel maker-item");list.append(node("h3","","فترات Premium المجانية"));root.append(list);
  const data=await api("/dashboard/api/maker/trials");(data.trials||[]).forEach(trial=>{const row=node("div","store-admin-row"),info=node("div","store-admin-info");info.append(node("b","",trial.botName+" • "+trial.botId),node("small","", "السيرفر: "+trial.guildId+" • المالك: "+trial.ownerId+" • المدة: "+trial.durationHours+" ساعة"),node("small","", "الحالة: "+trial.status+" • الانتهاء: "+new Date(trial.endDate).toLocaleString("ar-SA")));row.append(info);if(trial.active){const stop=node("button","ghost-button","إيقاف التجربة");stop.addEventListener("click",async()=>{if(!confirm("إيقاف فترة التجربة لهذا البوت؟"))return;try{await api("/dashboard/api/maker/trials/"+encodeURIComponent(trial.botId)+"/revoke",{method:"POST",body:"{}"});notify("تم إيقاف التجربة.");await refreshMaker();}catch(e){notify(e.message,true);}});row.append(stop);}list.append(row);});if(!(data.trials||[]).length)list.append(node("p","","لا توجد فترات تجريبية مسجلة."));
