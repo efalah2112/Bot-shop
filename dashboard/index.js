@@ -675,7 +675,8 @@ function setupDashboard(app, { bots, db }) {
         { prefix: "roles_ticket_channel_", type: "roles", adminKey: "roles_admin_" },
         { prefix: "support_ticket_ch_", type: "support", adminKey: "support_admin_" }
       ];
-      const match = prefixes.find(item => (await db.get(item.prefix + channelId)) !== undefined);
+      let match = null;
+      for (const item of prefixes) { if (await db.get(item.prefix + channelId) !== undefined) { match = item; break; } }
       if (!match) return json(res, 404, { error: "لم يتم العثور على سجل لهذه التذكرة." });
       const key = match.prefix + channelId;
       const meta = await db.get(key);
