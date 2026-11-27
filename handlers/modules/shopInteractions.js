@@ -273,6 +273,7 @@ client.on('messageCreate', async message => {
     await message.channel.send({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 });
 
@@ -328,6 +329,7 @@ const helpers = helpersList.length > 0 ? helpersList.map(id => `<@${id}>`).join(
     await interaction.reply({
         components: [container],
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 });
    
@@ -560,6 +562,7 @@ client.on("messageCreate", async (message) => {
     const helpMsg = await message.reply({
         components: [mainContainer],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 
     const collector = helpMsg.createMessageComponentCollector({
@@ -574,6 +577,7 @@ client.on("messageCreate", async (message) => {
             await i.update({
                 components: [freshContainer],
                 flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
             });
             return;
         }
@@ -585,6 +589,7 @@ client.on("messageCreate", async (message) => {
         await i.reply({
             components: [categoryContainer],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
         });
     });
 
@@ -596,7 +601,8 @@ client.on("messageCreate", async (message) => {
             row?.components?.forEach((c) => c.setDisabled?.(true));
         }
         await helpMsg
-            .edit({ components: [disabledMain], flags: MessageFlags.IsComponentsV2 })
+            .edit({ components: [disabledMain], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },})
             .catch(() => {});
     });
 });
@@ -701,6 +707,7 @@ client.on("interactionCreate", async (interaction) => {
             await interaction.editReply({
                 components: [container],
                 flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
             });
 
         } catch (error) {
@@ -811,6 +818,7 @@ client.on("interactionCreate", async (interaction) => {
             await interaction.editReply({
                 components: [detailContainer],
                 flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
             });
 
         } catch (error) {
@@ -1234,7 +1242,8 @@ client.on("interactionCreate", async (interaction) => {
         container.addActionRowComponents(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
     }
 
-    await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 
     await interaction.editReply({ content: `✅ **تـم إنـشـاء تـذكـرتـك بـنـجـاح:** <#${ticketChannel.id}>` });
 }
@@ -1712,7 +1721,8 @@ client.on("interactionCreate", async (interaction) => {
                 new ButtonBuilder().setCustomId("closeauction").setLabel("اغـلاق الـتـكت").setStyle(ButtonStyle.Danger).setEmoji(emojis.close || "🔒"),
             ));
 
-            await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
             
             await interaction.editReply({ content: `**__ تم انشاء تذكرتك بنجاح : <#${ticketChannel.id}> __**` });
         } catch (error) {
@@ -1781,6 +1791,7 @@ client.on("interactionCreate", async (interaction) => {
             await interaction.reply({ 
                 components: [container], 
                 flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
                 ephemeral: true 
             });
             
@@ -2196,7 +2207,8 @@ async function showAuctionSummary(channel, draft, userId, guildId, auctionadmin)
         new ButtonBuilder().setCustomId(`cancel_auction_${userId}`).setLabel("إلغاء المزاد").setStyle(ButtonStyle.Danger).setEmoji(emojis.cancelAuction),
     ));
 
-    return await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    return await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 }
 
 // ============================================
@@ -2232,7 +2244,8 @@ async function endAuction(timerData, roomId) {
     );
     container.addActionRowComponents(actionRow);
 
-    await roomChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await roomChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 
     if (middlemanLink) {
         const warnRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel("سيرفر الوسطاء").setStyle(ButtonStyle.Link).setURL(middlemanLink).setEmoji("🔗"));
@@ -2287,7 +2300,8 @@ client.on("messageCreate", async (message) => {
     );
     container.addActionRowComponents(row);
 
-    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
     await message.delete().catch(() => {});
 });
 
@@ -2578,6 +2592,7 @@ container.addActionRowComponents(new ActionRowBuilder().addComponents(...typeBut
 await ticketChannel.send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
 await interaction.editReply({ content: `**✅ تم إنشاء تذكرتك: <#${ticketChannel.id}>**` });});
 
@@ -2915,7 +2930,8 @@ client.on("interactionCreate", async (interaction) => {
     );
     container.addActionRowComponents(ticketBtn);
 
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });
 //-------- /mzad-list slash command (Container v2) --------
 client.on("interactionCreate", async (interaction) => {
@@ -2954,7 +2970,8 @@ client.on("interactionCreate", async (interaction) => {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${interaction.guild.name} | إجـمـالـي الـرومـات: ${rooms.length}`));
 
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });
     //-------- /start-mzad slash command --------
   async function requireAuctionAdmin(interaction, db) {
@@ -3473,6 +3490,7 @@ container.addActionRowComponents(actionBtns);
 await ticketChannel.send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
     await interaction.editReply({ content: `**✅ تم إنشاء تذكرتك: <#${ticketChannel.id}>**` });
 });
@@ -3601,7 +3619,8 @@ client.on("interactionCreate", async (interaction) => {
                 .addSectionComponents(new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ✅ تم إنشاء رتبتك`)))
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**الرتبة:** <@&${newRole.id}>\n**اللون:** \`#${hexMatch[1].toUpperCase()}\`\n**الأيقونة:** ${iconOption ? "✅" : "بدون"}`));
-            await channel.send({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
+            await channel.send({ components: [successContainer], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
         } catch (err) {
             await channel.send("**❌ فشل إنشاء الرتبة.**");
         }
@@ -3714,7 +3733,8 @@ client.on("interactionCreate", async (interaction) => {
     const buyBtn = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("ticket-roles").setLabel("شراء رتبة").setStyle(ButtonStyle.Secondary).setEmoji(emojis.ticketRoles));
     container.addActionRowComponents(buyBtn);
 
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });
 
 //-------- roles_delete_panel: زر حذف رتبة --------
@@ -3762,7 +3782,8 @@ client.on("messageCreate", async (message) => {
     const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("ticket-roles").setLabel("شراء رتبة خاصة").setStyle(ButtonStyle.Primary));
     container.addActionRowComponents(row);
 
-    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
     await message.delete().catch(() => {});
 });
     //======================================================
@@ -3900,6 +3921,7 @@ async function _createTicket(interaction, type) {
 await ticketChannel.send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
 
     await interaction.editReply({
@@ -3990,6 +4012,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.followUp({
         components: [claimContainer],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 
     // لوق
@@ -4022,6 +4045,7 @@ client.on("interactionCreate", async (interaction) => {
         await logsChannel.send({
             components: [logContainer],
             flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
         });
     }
 });
@@ -4168,6 +4192,7 @@ client.on("interactionCreate", async (interaction) => {
         content: `**✅ تم إكمال التقرير — في انتظار قرار الإدارة:**`,
         components: [container],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 
     // لوق في قناة اللوق
@@ -4188,7 +4213,8 @@ client.on("interactionCreate", async (interaction) => {
         );
         logContainer.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
         logContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${interaction.guild.name} | نظام التشهير`));
-        await logsChannel.send({ components: [logContainer], flags: MessageFlags.IsComponentsV2 });
+        await logsChannel.send({ components: [logContainer], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
     }
 });
 
@@ -4296,7 +4322,8 @@ client.on("interactionCreate", async (interaction) => {
         new ButtonBuilder().setCustomId("_done1").setLabel("تم النشر").setStyle(ButtonStyle.Secondary).setDisabled(true).setEmoji(emojis.done),
         new ButtonBuilder().setCustomId("_done2").setLabel("إلغاء").setStyle(ButtonStyle.Secondary).setDisabled(true).setEmoji(emojis.cancel),
     ));
-    await interaction.update({ components: [disabledContainer], flags: MessageFlags.IsComponentsV2 });
+    await interaction.update({ components: [disabledContainer], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 
     await interaction.channel.send(
         `**✅ تم نشر التشهير في <#${scamRoomId}> بواسطة <@${interaction.user.id}>.**\n` +
@@ -4337,7 +4364,8 @@ client.on("interactionCreate", async (interaction) => {
         new ButtonBuilder().setCustomId("_done1").setLabel("تم النشر").setStyle(ButtonStyle.Secondary).setDisabled(true).setEmoji(emojis.done),
         new ButtonBuilder().setCustomId("_done2").setLabel("تم الإلغاء").setStyle(ButtonStyle.Secondary).setDisabled(true).setEmoji(emojis.cancel),
     ));
-    await interaction.update({ components: [disabledContainer], flags: MessageFlags.IsComponentsV2 });
+    await interaction.update({ components: [disabledContainer], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 
     await interaction.channel.send(
         `**🚫 تم إلغاء التشهير بواسطة <@${interaction.user.id}>.**\n**🔒 سيتم إغلاق التكت خلال 10 ثواني...**`
@@ -4471,7 +4499,8 @@ client.on("interactionCreate", async (interaction) => {
             new TextDisplayBuilder().setContent(`-# ${interaction.guild.name} | نظام التشهير`)
         );
         
-        await logsChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await logsChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
     }
 
     // ✅ رد على التفاعل
@@ -4540,6 +4569,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
         ephemeral: true,
     });
 });
@@ -5026,6 +5056,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({
         components: [container],
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 });
     //-------- rule_remove_select: حذف قانون من الداتابيز --------
@@ -5152,7 +5183,8 @@ client.on("interactionCreate", async (interaction) => {
         new ButtonBuilder().setCustomId(`additions_prices_${gId}`).setLabel("أسعار الإضافات").setStyle(ButtonStyle.Secondary).setEmoji(emojis.additionsPrices),
     );
     container.addActionRowComponents(row);
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });
 
 // ========== أسعار الإضافات - أزرار (Container v2) ==========
@@ -5184,7 +5216,8 @@ client.on("interactionCreate", async (interaction) => {
         );
         container.addActionRowComponents(row);
     }
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });
 
 // ========== عرض سعر إضافة (Container v2) ==========
@@ -5214,7 +5247,8 @@ client.on("interactionCreate", async (interaction) => {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(price ? `**الـسـعـر:** \`${price}\`` : "**الـسـعـر غـيـر مـحـدد بـعـد.**"));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${interaction.guild.name} | الأسـعـار`));
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });
 
 // ========== القوانين (Container v2) ==========
@@ -5252,7 +5286,8 @@ client.on("interactionCreate", async (interaction) => {
 
     const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("ticket-roles").setLabel("شراء رتبة").setStyle(ButtonStyle.Success).setEmoji(emojis.roles));
     container.addActionRowComponents(row);
-    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
 });    //-------- allinone_rules: بانل القوانين --------
     client.on("interactionCreate", async (interaction) => {
     if (!interaction.isButton()) return;
@@ -5321,6 +5356,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({
         components: [container],
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 });
     //-------- allinone_tickets: بانل التكتات --------
@@ -5378,6 +5414,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({
         components: [container],
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     });
 });
     //-------- allinone_roles: بانل الرتب --------
@@ -5469,6 +5506,7 @@ container.addSectionComponents(section);
     await interaction.update({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
     }).catch(() => {});
 });
 
@@ -5520,7 +5558,8 @@ client.on("messageCreate", async (message) => {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${message.guild.name} | نـظـام الـمـجـانـي`));
     container.addActionRowComponents(row);
 
-    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },});
     await message.delete().catch(() => {});
 });
 
@@ -5613,6 +5652,7 @@ container.addTextDisplayComponents(
 await ticketChannel.send({
     components: [container],  // بدون content
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
     await interaction.editReply({ content: `✅ تم فتح تذكرة المتجر المجاني: <#${ticketChannel.id}>` });
 });
@@ -5728,6 +5768,7 @@ container.addTextDisplayComponents(
 await shopChannel.send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
 
 // للتكت
@@ -5831,6 +5872,7 @@ container.addTextDisplayComponents(
 await ticketChannel.send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
         await interaction.editReply({ content: `**__ تم انشاء تذكرة المزاد المجاني : <#${ticketChannel.id}> __**` });
     } catch (error) {
@@ -5955,6 +5997,7 @@ container.addTextDisplayComponents(
 await ticketChannel.send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 });
     await interaction.editReply({ content: `✅ تم إنشاء تذكرة الطلب المجاني: <#${ticketChannel.id}>` });
 });
