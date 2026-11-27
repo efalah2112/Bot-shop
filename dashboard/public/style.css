@@ -56,3 +56,6 @@
 
 .identity-preview{display:flex;align-items:center;gap:13px;margin:16px 0;padding:13px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(15,23,42,.38)}
 .identity-preview img{width:58px;height:58px;object-fit:cover;border-radius:50%}.identity-preview div{display:flex;flex-direction:column;gap:5px}.identity-preview small{color:var(--muted,#9aa4b8)}
+
+.store-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media(max-width:560px){.store-row-actions{width:100%}.store-row-actions button{flex:1}}
