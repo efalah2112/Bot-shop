@@ -221,6 +221,20 @@ function setupDashboard(app, { bots, db }) {
     if (!req.session.user || req.session.user.id !== maker.MAKER_OWNER_ID) return json(res, 403, { error: "إدارة صلاحيات الميكر متاحة للمالك الأساسي فقط." });
     next();
   };
+  app.post("/dashboard/api/maker/settings/premium", requireUser, requireMaker, async (req, res) => {
+    try {
+      const settings = await db.get("premium_settings");
+      if (!settings) return json(res, 404, { error: "إعدادات Premium غير موجودة؛ نفّذ إعداد الميكر أولاً." });
+      const priceMonthly = Number(req.body?.priceMonthly), price3Months = Number(req.body?.price3Months);
+      if (!Number.isInteger(priceMonthly) || priceMonthly < 1 || priceMonthly > 1000000000 || !Number.isInteger(price3Months) || price3Months < 1 || price3Months > 1000000000) return json(res, 400, { error: "أسعار الاشتراك يجب أن تكون أرقاماً صحيحة أكبر من صفر." });
+      const makerClient = getBot(maker.MAKER_BOT_ID), guild = makerClient?.guilds?.cache?.get(settings.guildId);
+      if (!guild) return json(res, 503, { error: "بوت الميكر غير موجود في سيرفر إعدادات Premium." });
+      settings.priceMonthly = priceMonthly; settings.price3Months = price3Months;
+      await db.set("premium_settings", settings);
+      await audit(settings.guildId, req.session.user, "maker-premium-settings", ["تحديث أسعار اشتراكات Premium"]);
+      json(res, 200, { saved:true, priceMonthly, price3Months });
+    } catch (error) { console.error("[Maker premium settings]", error); json(res, 500, { error: "تعذر حفظ إعدادات Premium." }); }
+  });
   app.get("/dashboard/api/maker/developers", requireUser, requireMakerOwner, async (_req, res) => {
     const stored = await db.get("dashboard_developer_ids") || [];
     json(res, 200, { ownerId: maker.MAKER_OWNER_ID, envManaged: [...envDeveloperIds], developers: [...new Set([maker.MAKER_OWNER_ID, ...envDeveloperIds, ...(Array.isArray(stored) ? stored : [])])] });
