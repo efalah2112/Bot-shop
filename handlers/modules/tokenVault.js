@@ -102,6 +102,11 @@ function addToken(token, filePath = './config.json') {
     return true;
 }
 
+function hasToken(token, filePath = './config.json') {
+    const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return loadTokens(config, filePath).includes(token);
+}
+
 function removeToken(token, filePath = './config.json') {
     const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     const tokens = loadTokens(config, filePath);
@@ -116,5 +121,6 @@ module.exports = {
     decryptToken,
     loadTokens,
     addToken,
+    hasToken,
     removeToken
 };
