@@ -2589,6 +2589,67 @@ client.on("interactionCreate", async (interaction) => {
         }
     });
 
+    // Text shortcuts for tax calculation and staff call; defaults match /اختصارت.
+    client.on("messageCreate", async (message) => {
+        if (!message.guild || message.author.bot) return;
+        const guildId = message.guild.id;
+        const firstSpace = message.content.indexOf(" ");
+        const command = firstSpace < 0 ? message.content : message.content.slice(0, firstSpace);
+        const args = firstSpace < 0 ? "" : message.content.slice(firstSpace + 1).trim();
+
+        const taxShortcut = (await db.get(`shortcut_tax_${guildId}`)) || "+tax";
+        if (command === taxShortcut) {
+            const match = args.match(/^([0-9]+(?:\\.[0-9]+)?)(k|m|b|ألف|الف|مليون|مليار)?$/i);
+            if (!match) return message.reply("استخدم الأمر بهذا الشكل: `+tax 1000` أو `+tax 1k`.");
+            const multiplier = /^(k|ألف|الف)$/i.test(match[2] || "") ? 1000 :
+                /^(m|مليون)$/i.test(match[2] || "") ? 1000000 :
+                /^(b|مليار)$/i.test(match[2] || "") ? 1000000000 : 1;
+            const amount = Number(match[1]) * multiplier;
+            if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000000000) {
+                return message.reply("أدخل مبلغاً صحيحاً أكبر من صفر.");
+            }
+            const total = Math.floor((amount * 20) / 19 + 1);
+            const tax = total - amount;
+            const intermediary = Math.floor((tax * 20) / 19 + 1 + amount);
+            const embed = new EmbedBuilder()
+                .setTitle("حساب الضريبة")
+                .setColor(_ec.color(guildId))
+                .addFields(
+                    { name: "المبلغ", value: String(amount), inline: true },
+                    { name: "الضريبة", value: String(tax), inline: true },
+                    { name: "مع الضريبة", value: String(total), inline: true },
+                    { name: "مع الوسيط", value: String(intermediary), inline: true }
+                )
+                .setTimestamp();
+            return message.reply({ embeds: [embed] });
+        }
+
+        const callShortcut = (await db.get(`shortcut_call_${guildId}`)) || "+come";
+        if (command === callShortcut) {
+            const admins = await db.get(`shopad_${guildId}`);
+            if (!admins) return message.reply("يرجى تحديد رتبة مسؤول المتاجر أولاً باستخدام /setup.");
+            if (!message.member.roles.cache.has(admins)) {
+                return message.reply(`ليس لديك صلاحية. تحتاج رتبة <@&${admins}>.`);
+            }
+            const target = message.mentions.users.first();
+            if (!target) return message.reply("استخدم الأمر بهذا الشكل: `+come @العضو سبب الاستدعاء`.");
+            if (target.id === message.author.id) return message.reply("لا يمكنك استدعاء نفسك.");
+            const reason = args.replace(/<@!?\\d{17,20}>/, "").trim() || "لم يتم تحديد سبب.";
+            const embed = new EmbedBuilder()
+                .setTitle("تم استدعاؤك")
+                .setColor(_ec.color(guildId))
+                .setDescription(`قام ${message.author} باستدعائك إلى روم ${message.channel}.`)
+                .addFields({ name: "سبب الاستدعاء", value: reason.slice(0, 1024) })
+                .setTimestamp();
+            try {
+                await target.send({ embeds: [embed] });
+                return message.reply(`تم إرسال الاستدعاء إلى ${target} بنجاح.`);
+            } catch {
+                return message.reply("تعذر إرسال رسالة خاصة لهذا العضو. قد تكون رسائله الخاصة مغلقة.");
+            }
+        }
+    });
+
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.isCommand()) return;
 
