@@ -806,7 +806,17 @@ function setupDashboard(app, { bots, db }) {
           }))
         });
       }
-      json(res, 200, { commands: [...all.values()].sort((a, b) => a.name.localeCompare(b.name)) });
+      const callShortcut = await db.get("shortcut_call_" + access.guildId) || "+come";
+      const taxShortcut = await db.get("shortcut_tax_" + access.guildId) || "+tax";
+      const textCommands = [
+        { command: callShortcut, description: "استدعاء مسؤول المتجر (اختصار قابل للتخصيص)" },
+        { command: taxShortcut, description: "حساب الضريبة (اختصار قابل للتخصيص)" },
+        { command: "+تحذيرات", description: "إعداد تحذيرات المتاجر التلقائية" },
+        { command: "+تسطيب التقديم", description: "إعداد التقديمات" },
+        { command: "+اضافه", description: "إضافة المتاجر إلى قاعدة البيانات" },
+        { command: "!داتا", description: "إغلاق التكت وحذف بياناته" }
+      ];
+      json(res, 200, { commands: [...all.values()].sort((a, b) => a.name.localeCompare(b.name)), textCommands });
     } catch (error) {
       console.error("[Dashboard commands]", error.message);
       json(res, 500, { error: "تعذر تحميل أوامر البوت." });
