@@ -29,24 +29,36 @@ const { QuickDB, SqliteDriver } = require("quick.db");
 const sqliteDriver = new SqliteDriver("./database.sqlite");
 const db = QuickDB.createSingleton({ driver: sqliteDriver });
 
-// Persist a bounded, redacted copy of the Node process console for the Maker console tab.
-const hostConsoleOriginal = { log: console.log.bind(console), info: console.info.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
+// Persist a bounded, redacted copy of the Node process output for the Maker console tab.
+// Capture stdout/stderr rather than wrapping console.* so library output is included without duplicate entries.
 let hostConsoleQueue = Promise.resolve();
-for (const level of Object.keys(hostConsoleOriginal)) {
-  console[level] = (...args) => {
-    hostConsoleOriginal[level](...args);
-    try {
-      const raw = require("util").format(...args);
-      const message = String(raw).replace(/[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]").slice(0, 1800);
-      hostConsoleQueue = hostConsoleQueue.then(async () => {
-        const current = await db.get("maker_host_console_logs");
-        const entries = Array.isArray(current) ? current : [];
-        entries.push({ at: Date.now(), level, message });
-        await db.set("maker_host_console_logs", entries.slice(-300));
-      }).catch(() => {});
-    } catch {}
-  };
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
+function captureHostOutput(level, chunk, encoding) {
+  try {
+    const raw = Buffer.isBuffer(chunk) || ArrayBuffer.isView(chunk)
+      ? Buffer.from(chunk).toString(typeof encoding === "string" ? encoding : "utf8")
+      : String(chunk ?? "");
+    const message = raw
+      .replace(/[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{6,}\\.[A-Za-z0-9_-]{20,}/g, "[REDACTED_TOKEN]")
+      .slice(0, 1800);
+    if (!message.trim()) return;
+    hostConsoleQueue = hostConsoleQueue.then(async () => {
+      const current = await db.get("maker_host_console_logs");
+      const entries = Array.isArray(current) ? current : [];
+      entries.push({ at: Date.now(), level, message });
+      await db.set("maker_host_console_logs", entries.slice(-300));
+    }).catch(() => {});
+  } catch {}
 }
+process.stdout.write = function(chunk, encoding, callback) {
+  captureHostOutput("stdout", chunk, encoding);
+  return originalStdoutWrite(chunk, encoding, callback);
+};
+process.stderr.write = function(chunk, encoding, callback) {
+  captureHostOutput("stderr", chunk, encoding);
+  return originalStderrWrite(chunk, encoding, callback);
+};
 
 const config = require("./config.json");
 const tokenVault = require("./handlers/modules/tokenVault");
