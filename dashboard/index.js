@@ -254,7 +254,10 @@ function setupDashboard(app, { bots, db }) {
       const key = "premium_user_" + userId, record = await db.get(key);
       if (!record) return json(res, 404, { error: "لم يتم العثور على اشتراك لهذا المستخدم." });
       record.endDate = Math.max(Date.now(), Number(record.endDate || 0)) + days * 86400000; record.active = true; record.notified3d = false; record.notified24h = false;
-      await db.set(key, record); json(res, 200, { success: true, endDate: record.endDate, active: true });
+      await db.set(key, record);
+      const makerClient = getBot(maker.MAKER_BOT_ID);
+      if (makerClient?._controlPremiumBot) await makerClient._controlPremiumBot(record.botId, true).catch(error => console.error("[Maker premium restart]", error.message));
+      json(res, 200, { success: true, endDate: record.endDate, active: true });
     } catch (error) { console.error("[Maker premium extend]", error); json(res, 500, { error: "تعذر تمديد الاشتراك." }); }
   });
 
@@ -265,7 +268,10 @@ function setupDashboard(app, { bots, db }) {
       const key = "premium_user_" + userId, record = await db.get(key);
       if (!record) return json(res, 404, { error: "لم يتم العثور على الاشتراك." });
       if (active && Number(record.endDate || 0) <= Date.now()) return json(res, 409, { error: "انتهت مدة الاشتراك؛ مدده أولاً قبل إعادة تفعيله." });
-      record.active = active; await db.set(key, record); json(res, 200, { success: true, active });
+      record.active = active; await db.set(key, record);
+      const makerClient = getBot(maker.MAKER_BOT_ID);
+      if (makerClient?._controlPremiumBot) await makerClient._controlPremiumBot(record.botId, active).catch(error => console.error("[Maker premium lifecycle]", error.message));
+      json(res, 200, { success: true, active });
     } catch (error) { console.error("[Maker premium status]", error); json(res, 500, { error: "تعذر تحديث حالة الاشتراك." }); }
   });
   app.get("/dashboard", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
@@ -379,7 +385,9 @@ function setupDashboard(app, { bots, db }) {
       const records = await getAllPremiumRecords();
       if (mode === "developer" && !developer) return json(res, 403, { error: "هذا القسم متاح للمبرمج فقط." });
       if (mode === "premium") {
-        const owned = records.filter(record => record.userId === req.session.user.id || record.dashboardOwnerId === req.session.user.id);
+        const userGuilds = await getUserGuilds(req);
+        const manageableGuildIds = new Set(userGuilds.filter(item => hasGuildManagement(item.permissions, item.owner)).map(item => item.id));
+        const owned = records.filter(record => (record.userId === req.session.user.id || record.dashboardOwnerId === req.session.user.id) && manageableGuildIds.has(record.guildId));
         const guilds = owned.map(record => {
           const bot = getBot(record.botId);
           const guild = bot && bot.guilds.cache.get(record.guildId);
@@ -590,6 +598,12 @@ function setupDashboard(app, { bots, db }) {
         (record.userId === req.session.user.id || record.dashboardOwnerId === req.session.user.id));
       if (!allowed) {
         json(res, 403, { error: "السيرفر غير مرتبط باشتراك Premium نشط لحسابك." });
+        return null;
+      }
+      const userGuilds = await getUserGuilds(req);
+      const membership = userGuilds.find(item => item.id === guildId);
+      if (!membership || !hasGuildManagement(membership.permissions, membership.owner)) {
+        json(res, 403, { error: "يجب أن تملك صلاحية إدارة السيرفر المرتبط باشتراك Premium." });
         return null;
       }
     } else {
