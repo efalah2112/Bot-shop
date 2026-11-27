@@ -712,6 +712,7 @@ function setupDashboard(app, { bots, db }) {
 
   app.post("/dashboard/api/premium/exchange", requireUser, async (req, res) => {
     try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "هذه الميزة متاحة لبوتات Premium فقط." });
+      await access.guild.channels.fetch().catch(() => {}); await access.guild.roles.fetch().catch(() => {});
       const body = req.body || {}, current = await db.get("xch_cfg_" + access.guildId) || {};
       const schedules = ["*/5 * * * *","*/10 * * * *","*/15 * * * *","*/30 * * * *","0 * * * *","0 */2 * * *","0 */6 * * *","0 */12 * * *"];
       const allowedRoles = Array.isArray(body.allowedRoles) ? [...new Set(body.allowedRoles)] : [];
@@ -737,6 +738,7 @@ function setupDashboard(app, { bots, db }) {
 
   app.post("/dashboard/api/premium/private-auction", requireUser, async (req, res) => {
     try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "المزاد الخاص متاح لبوتات Premium فقط." });
+      await access.guild.channels.fetch().catch(() => {});
       const body = req.body || {}, types = Array.isArray(body.types) ? body.types : [];
       if (types.length > 25) return json(res, 400, { error: "الحد الأقصى 25 نوع مزاد." });
       const normalized = types.map(t => ({ name:String(t.name || "").trim().slice(0,50), hours:Number(t.hours), every:Number(t.every || 0), here:Number(t.here || 0), price:Number(t.price), notice:String(t.notice || "").slice(0,1000) }));
@@ -751,6 +753,7 @@ function setupDashboard(app, { bots, db }) {
 
   app.get("/dashboard/api/premium/promotions", requireUser, async (req, res) => {
     try { const access = await resolveWorkspace(req, res, req.query); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "نظام نقاط وترقيات الإدارة متاح لبوتات Premium فقط." });
+      const memberships = await getUserGuilds(req); if (!memberships.some(item => item.id === access.guildId && item.owner)) return json(res, 403, { error: "إعدادات الترقيات متاحة لمالك السيرفر فقط." });
       const rows = await db.all(), suffix = "_" + access.guildId;
       const points = (rows || []).filter(row => String(row.id || "").startsWith("ticket_pts_") && String(row.id).endsWith(suffix)).map(row => ({ userId:String(row.id).slice("ticket_pts_".length, -suffix.length), points:Number(row.value || 0) })).sort((a,b)=>b.points-a.points).slice(0,50);
       json(res, 200, { points, levels: await db.get("ticket_promotion_levels_" + access.guildId) || [] });
@@ -759,6 +762,8 @@ function setupDashboard(app, { bots, db }) {
 
   app.post("/dashboard/api/premium/promotions", requireUser, async (req, res) => {
     try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; if (access.mode !== "premium") return json(res, 403, { error: "نظام نقاط وترقيات الإدارة متاح لبوتات Premium فقط." });
+      const memberships = await getUserGuilds(req); if (!memberships.some(item => item.id === access.guildId && item.owner)) return json(res, 403, { error: "إعدادات الترقيات متاحة لمالك السيرفر فقط." });
+      await access.guild.roles.fetch().catch(() => {});
       const levels = Array.isArray(req.body?.levels) ? req.body.levels : [];
       if (levels.length > 20 || levels.some(level => !Number.isInteger(Number(level.points)) || Number(level.points) < 1 || Number(level.points) > 100000 || !snowflake(String(level.roleId || "")) || !access.guild.roles.cache.has(String(level.roleId)))) return json(res, 400, { error: "مستويات الترقية أو الرتب غير صالحة." });
       const normalized = levels.map(level => ({ points:Number(level.points), roleId:String(level.roleId) })).sort((a,b)=>a.points-b.points);
