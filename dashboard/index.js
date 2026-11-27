@@ -600,12 +600,30 @@ function setupDashboard(app, { bots, db }) {
       const access = await resolveWorkspace(req, res, req.body || {});
       if (!access) return;
       const nickname = String(req.body?.nickname || "").trim();
+      const avatarUrl = String(req.body?.avatarUrl || "").trim();
       if (nickname.length > 32) return json(res, 400, { error: "اسم البوت داخل السيرفر يجب ألا يتجاوز 32 حرفاً." });
+      if (avatarUrl) {
+        let parsed;
+        try { parsed = new URL(avatarUrl); } catch { return json(res, 400, { error: "رابط الصورة غير صالح." }); }
+        const allowedHosts = new Set(["cdn.discordapp.com", "media.discordapp.net", "i.imgur.com"]);
+        if (parsed.protocol !== "https:" || !allowedHosts.has(parsed.hostname) || parsed.href.length > 500) {
+          return json(res, 400, { error: "ارفع الصورة إلى Discord CDN أو Imgur واستخدم رابط HTTPS مباشر." });
+        }
+      }
       const me = await access.guild.members.fetchMe();
-      if (!me.permissions.has("ManageNicknames")) return json(res, 403, { error: "البوت يحتاج صلاحية Manage Nicknames لتغيير اسمه داخل السيرفر." });
-      await me.setNickname(nickname || null, "Dashboard bot identity update");
-      await audit(access.guildId, req.session.user, "identity", ["تحديث الاسم الظاهر للبوت"]);
-      json(res, 200, { saved: true, nickname });
+      if (nickname !== undefined && !me.permissions.has("ManageNicknames")) {
+        return json(res, 403, { error: "البوت يحتاج صلاحية Manage Nicknames لتغيير اسمه داخل السيرفر." });
+      }
+      if (nickname !== (me.nickname || "") && !me.permissions.has("ManageNicknames")) {
+        return json(res, 403, { error: "البوت يحتاج صلاحية Manage Nicknames لتغيير اسمه داخل السيرفر." });
+      }
+      if (nickname !== (me.nickname || "")) await me.setNickname(nickname || null, "Dashboard bot identity update");
+      if (avatarUrl) await access.bot.user.setAvatar(avatarUrl);
+      await audit(access.guildId, req.session.user, "identity", [
+        ...(nickname !== (me.nickname || "") ? ["تحديث الاسم الظاهر للبوت"] : []),
+        ...(avatarUrl ? ["تحديث صورة حساب البوت"] : [])
+      ]);
+      json(res, 200, { saved: true, nickname, avatar: access.bot.user.displayAvatarURL({ size: 256 }) });
     } catch (error) {
       console.error("[Dashboard identity update]", error.message);
       json(res, 500, { error: "تعذر تحديث اسم البوت. تحقق من صلاحياته وترتيب رتبته." });
