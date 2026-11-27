@@ -960,7 +960,8 @@ async function addPremiumUser(userId, data, db, client) {
     await db.set(`premium_user_${userId}`, userData);
     if (client && typeof client._registerPremiumBot === 'function') {
         try {
-            await client._registerPremiumBot(botToken);
+            const runtimeClient = await client._registerPremiumBot(botToken);
+            if (runtimeClient && botId) runtimeClient._dashboardBotId = botId;
             userData.runtimeStatus = 'starting';
         } catch (error) {
             console.error('[Premium] تعذر تشغيل البوت بعد التفعيل:', error.message);
