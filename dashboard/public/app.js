@@ -105,6 +105,10 @@ async function renderMakerConsole(root){
   }finally{refresh.disabled=false;}
  }
  refresh.addEventListener("click",()=>load().catch(e=>notify(e.message,true)));
+ const poll=setInterval(()=>{
+  if(makerPage!=="console"||$("#maker-workspace").classList.contains("hidden")){clearInterval(poll);return;}
+  load().catch(e=>{state.textContent="تعذر التحديث";notify(e.message,true);});
+ },4000);
  copy.addEventListener("click",async()=>{
   if(!output){notify("لا توجد مخرجات لنسخها.",true);return;}
   try{await navigator.clipboard.writeText(output);notify("تم نسخ مخرجات الكونسول.");}
