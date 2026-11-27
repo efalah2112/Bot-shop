@@ -676,7 +676,7 @@ function setupDashboard(app, { bots, db }) {
         { prefix: "support_ticket_ch_", type: "support", adminKey: "support_admin_" }
       ];
       let match = null;
-      for (const item of prefixes) { if (await db.get(item.prefix + channelId) !== undefined) { match = item; break; } }
+      for (const item of prefixes) { if (await db.get(item.prefix + channelId) != null) { match = item; break; } }
       if (!match) return json(res, 404, { error: "لم يتم العثور على سجل لهذه التذكرة." });
       const key = match.prefix + channelId;
       const meta = await db.get(key);
