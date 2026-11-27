@@ -1108,12 +1108,28 @@ function setupDashboard(app, { bots, db }) {
     }
   });
 
+  app.get("/dashboard/api/purchasable-roles", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.query); if (!access) return; const roles = await db.get("buy_roles_" + access.guildId) || []; json(res, 200, { roles: Array.isArray(roles) ? roles.map((item, index) => ({ roleId: String(item.roleId || ""), name: String(item.name || ""), price: Number(item.price || 0), benefits: String(item.benefits || ""), index })) : [] }); }
+    catch (error) { console.error("[Dashboard purchasable roles]", error.message); json(res, 500, { error: "تعذر تحميل الرتب الشرائية." }); }
+  });
+  app.post("/dashboard/api/purchasable-roles", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.body || {}); if (!access) return; const member = await access.guild.members.fetch(req.session.user.id).catch(() => null); if (!member || !member.permissions.has(ADMINISTRATOR)) return json(res, 403, { error: "إدارة الرتب الشرائية تتطلب صلاحية Administrator." });
+      const body = req.body || {}, roleId = String(body.roleId || ""), role = access.guild.roles.cache.get(roleId), price = Number(body.price), benefits = String(body.benefits || "").trim().slice(0, 1000);
+      if (!snowflake(roleId) || !role || role.managed || role.id === access.guild.id) return json(res, 400, { error: "اختر رتبة سيرفر صالحة وغير مُدارة." }); if (!Number.isSafeInteger(price) || price < 1 || price > 1000000000) return json(res, 400, { error: "سعر الرتبة يجب أن يكون عدداً صحيحاً أكبر من صفر." }); if (!benefits) return json(res, 400, { error: "اكتب مميزات الرتبة." });
+      const roles = await db.get("buy_roles_" + access.guildId) || []; if (!Array.isArray(roles)) return json(res, 500, { error: "بيانات الرتب المخزنة غير صالحة." }); const at = roles.findIndex(item => String(item.roleId) === roleId), entry = { roleId, name: role.name, price, benefits };
+      if (at >= 0) roles[at] = entry; else { if (roles.length >= 5) return json(res, 400, { error: "الحد الأقصى 5 رتب شرائية." }); roles.push(entry); } await db.set("buy_roles_" + access.guildId, roles); await audit(access.guildId, req.session.user, "purchasable-roles", [(at >= 0 ? "تعديل " : "إضافة ") + role.name]); json(res, 200, { saved: true, roles });
+    } catch (error) { console.error("[Dashboard save purchasable role]", error.message); json(res, 500, { error: "تعذر حفظ الرتبة الشرائية." }); }
+  });
+  app.delete("/dashboard/api/purchasable-roles/:roleId", requireUser, async (req, res) => {
+    try { const access = await resolveWorkspace(req, res, req.query); if (!access) return; const member = await access.guild.members.fetch(req.session.user.id).catch(() => null); if (!member || !member.permissions.has(ADMINISTRATOR)) return json(res, 403, { error: "حذف الرتب الشرائية يتطلب صلاحية Administrator." }); const roleId = String(req.params.roleId || ""); if (!snowflake(roleId)) return json(res, 400, { error: "معرّف الرتبة غير صالح." }); const roles = await db.get("buy_roles_" + access.guildId) || []; if (!Array.isArray(roles)) return json(res, 500, { error: "بيانات الرتب المخزنة غير صالحة." }); const next = roles.filter(item => String(item.roleId) !== roleId); if (next.length === roles.length) return json(res, 404, { error: "الرتبة غير موجودة في قائمة الشراء." }); await db.set("buy_roles_" + access.guildId, next); await audit(access.guildId, req.session.user, "purchasable-roles", ["حذف " + roleId]); json(res, 200, { deleted: true }); }
+    catch (error) { console.error("[Dashboard delete purchasable role]", error.message); json(res, 500, { error: "تعذر حذف الرتبة الشرائية." }); }
+  });
   app.post("/dashboard/api/panels", requireUser, async (req, res) => {
     try {
       const access = await resolveWorkspace(req, res, req.body || {});
       if (!access) return;
       const { type, channelId, title, description, applicationType } = req.body || {};
-      if (!["tickets","support","application"].includes(type)) return json(res, 400, { error: "نوع البانل غير معروف." });
+      if (!["tickets","support","application","shop","order","auction","prices","roles"].includes(type)) return json(res, 400, { error: "نوع البانل غير معروف." });
       if (!snowflake(channelId)) return json(res, 400, { error: "اختر روم إرسال صحيح." });
       const channel = access.guild.channels.cache.get(channelId);
       if (!channel || ![0,5].includes(channel.type)) return json(res, 400, { error: "روم الإرسال غير صالح." });
@@ -1127,7 +1143,19 @@ function setupDashboard(app, { bots, db }) {
       const panelImage = await db.get("image_" + access.guildId);
       if (panelImage && /^https:\/\//i.test(panelImage)) embed.setImage(panelImage);
       const rows = [];
-      if (type === "tickets") {
+      if (["shop","order","auction","prices","roles"].includes(type)) {
+        const panelConfigs = {
+          shop: { title: "بـانـل شــراء مـتـاجـر", description: "أهلاً وسهلاً بك في قسم شراء المتاجر.", imageKey: "buyshopimage", buttons: [["buy_shop","شراء متجر"],["shoppri","أسعار المتاجر"]] },
+          order: { title: "بانل شراء طلبات", description: "أهلاً بك في قسم شراء الطلبات.", imageKey: "buyorderimage", buttons: [["ticket-order","شراء طلب"],["order-price","أسعار الطلبات"]] },
+          auction: { title: "بانل شراء مزاد", description: "أهلاً بك في قسم شراء المزادات.", imageKey: "buyauctionimage", buttons: [["ticket-auction","شراء مزاد"],["auctionpri","أسعار المزادات"]] },
+          prices: { title: "الأسعار", description: "اختر القسم لمعرفة الأسعار.", imageKey: "priceImage", buttons: [["mzad2_prices_" + access.guildId,"أسعار المزاد الخاص"],["roles_prices_" + access.guildId,"أسعار الرتب"],["additions_prices_" + access.guildId,"أسعار الإضافات"],["order-price","أسعار الطلبات"],["auctionpri","أسعار المزادات"],["shoppri","أسعار المتاجر"]] },
+          roles: { title: "الرتب المتاحة للشراء", description: "اختر زر شراء رتبة لعرض الرتب المتاحة.", imageKey: "image", buttons: [["ticket-roles","شراء رتبة"]] }
+        };
+        const cfg = panelConfigs[type], customImage = await db.get(cfg.imageKey + "_" + access.guildId); embed.setTitle(String(title || cfg.title).slice(0,256)).setDescription(String(description || cfg.description).slice(0,4000)); if (customImage && /^https:\/\//i.test(customImage)) embed.setImage(customImage);
+        if (type === "roles") { const [category, adminRole, purchasable] = await Promise.all([db.get("roles_cat_" + access.guildId),db.get("roles_admin_" + access.guildId),db.get("buy_roles_" + access.guildId)]); if (!category || !adminRole || !Array.isArray(purchasable) || !purchasable.length) return json(res,400,{error:"أكمل إعداد كاتيغوري تكت الرتب ورتبة المسؤول وأضف رتبة واحدة على الأقل."}); }
+        const buttons = cfg.buttons.map(([id,label]) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(ButtonStyle.Secondary)); const rows = []; for (let offset=0; offset<buttons.length; offset+=5) rows.push(new ActionRowBuilder().addComponents(buttons.slice(offset,offset+5)));
+        const message = await channel.send({ embeds: [embed], components: rows }); await audit(access.guildId, req.session.user, "panels", [type + ":" + message.id]); return json(res, 200, { sent: true, channelId: channel.id, messageId: message.id, url: message.url });
+      } else if (type === "tickets") {
         const [shopCat, shopAdmin, auctionCat, auctionAdmin, orderCat, orderAdmin, rolesCat, rolesAdmin, buyRoles] = await Promise.all([
           db.get("catbuy_shop_" + access.guildId), db.get("shopad_" + access.guildId),
           db.get("catbuy_auction_" + access.guildId), db.get("auctionad_" + access.guildId),
