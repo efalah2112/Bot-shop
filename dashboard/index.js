@@ -903,16 +903,23 @@ function setupDashboard(app, { bots, db }) {
           }))
         });
       }
-      const callShortcut = await db.get("shortcut_call_" + access.guildId) || "+come";
-      const taxShortcut = await db.get("shortcut_tax_" + access.guildId) || "+tax";
-      const textCommands = [
-        { command: callShortcut, description: "استدعاء مسؤول المتجر (اختصار قابل للتخصيص)" },
-        { command: taxShortcut, description: "حساب الضريبة (اختصار قابل للتخصيص)" },
-        { command: "+تحذيرات", description: "إعداد تحذيرات المتاجر التلقائية" },
-        { command: "+تسطيب التقديم", description: "إعداد التقديمات" },
-        { command: "+اضافه", description: "إضافة المتاجر إلى قاعدة البيانات" },
-        { command: "!داتا", description: "إغلاق التكت وحذف بياناته" }
+      const shortcutDefs = [
+        ["mention", "اختصار المنشنات", "shortcut_mention", "منشن"],
+        ["warning", "اختصار التحذير", "shortcut_warning", "+تحذير"],
+        ["delete", "اختصار الحذف", "shortcut_delete", "+حذف"],
+        ["tax", "اختصار الضريبة", "shortcut_tax", "+tax"],
+        ["call", "اختصار النداء", "shortcut_call", "+come"],
+        ["ping", "اختصار البنق", "shortcut_ping", "!ping"],
+        ["setShopOwner", "تحديد صاحب المتجر", "shortcut_setshopowner", "+تحديد-صاحب-المتجر"],
+        ["addMentions", "إضافة منشنات", "shortcut_addmentions", "+اضافة-منشنات"],
+        ["setMentions", "تحديد المنشنات", "shortcut_setmentions", "+تحديد-المنشنات"],
+        ["addShopData", "إضافة متجر للداتا", "shortcut_addshopdata", "+اضافة-متجر-للداتا"],
+        ["createShop", "إنشاء متجر", "shortcut_createshop", "+انشاء-متجر"]
       ];
+      const textCommands = await Promise.all(shortcutDefs.map(async ([key, label, dbKey, fallback]) => ({
+        key, label, command: await db.get(dbKey + "_" + access.guildId) || fallback,
+        description: label + " — أضف المعاملات المطلوبة بعد الاختصار."
+      })));
       json(res, 200, { commands: [...all.values()].sort((a, b) => a.name.localeCompare(b.name)), textCommands });
     } catch (error) {
       console.error("[Dashboard commands]", error.message);
