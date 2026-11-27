@@ -1143,7 +1143,7 @@ async function migrateLegacyPremiumTokens(db) {
     }
 }
 
-async function checkFreeTrialExpiries(client, db) {
+async function checkFreeTrialExpiries(client, db, bots) {
     const rows = await db.all();
     const now = Date.now();
     for (const entry of rows || []) {
@@ -1154,7 +1154,10 @@ async function checkFreeTrialExpiries(client, db) {
         trial.status = "expired";
         trial.expiredAt = now;
         await db.set(entry.id, trial);
-        if (client && typeof client._controlPremiumBot === "function") {
+        const target = (bots || []).find(item => (item._dashboardBotId || item.user?.id) === trial.botId);
+        if (trial.wasRunningBeforeTrial && target?.isReady()) {
+            target.emit("clientReady");
+        } else if (client && typeof client._controlPremiumBot === "function") {
             await client._controlPremiumBot(trial.botId, false).catch(error => console.error("[Premium trial] تعذر إيقاف البوت المنتهي:", error.message));
         }
     }
@@ -1198,7 +1201,7 @@ function setupMakerSystem(client, bots, db, config, fs, createBotClient) {
                 checkAllPremiumExpiries(client, db).catch((error) => {
                     console.error('[Premium] فشل فحص انتهاء الاشتراكات:', error);
                 });
-                checkFreeTrialExpiries(client, db).catch(error => console.error('[Premium trial] فشل فحص انتهاء التجارب:', error));
+                checkFreeTrialExpiries(client, db, bots).catch(error => console.error('[Premium trial] فشل فحص انتهاء التجارب:', error));
             }, 60 * 1000);
         }
     }
